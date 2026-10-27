@@ -21,4 +21,6 @@ dsh plugin --profile desktop add dsh-echo-sketch
 
 ## Usage
 
+Currently only supports models with multimodal (image) input.
+
 TODO
