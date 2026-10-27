@@ -54,6 +54,14 @@ API Doc Comments 写:
 
 ## Operation Guide
 
+Workflow:
+
+```bash
+just check
+just fmt
+just test
+```
+
 安装依赖：
 
 ```bash
@@ -66,8 +74,10 @@ pnpm install
 pnpm run build
 ```
 
-运行语法检查与单元测试：
+运行检查（JSDoc 类型检查 tsc + eslint + 产物语法检查）与单元测试：
 
 ```bash
 pnpm run check && pnpm test
 ```
+
+也可单独跑 `pnpm run typecheck` / `pnpm run lint`。

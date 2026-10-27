@@ -4,7 +4,10 @@ check: build
     pnpm run check
 
 fmt:
-    pnpm exec prettier --write "src/**/*.{js,jsx,css}" "tests/**/*.mjs" "scripts/**/*.mjs" "*.{json,md,yml}"
+    pnpm run fmt
+
+fmt-check:
+    pnpm run fmt:check
 
 test:
     pnpm test

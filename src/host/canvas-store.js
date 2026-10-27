@@ -1,16 +1,22 @@
 /** 每会话只保留最新画板状态的持久化存储。 */
 
-import { createHash } from 'node:crypto';
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
-import { normalizeStrokes, sameStrokes, strokesToSvg } from './canvas-strokes.js';
+import { createHash } from "node:crypto";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import {
+  normalizeStrokes,
+  sameStrokes,
+  strokesToSvg,
+} from "./canvas-strokes.js";
 
 /**
  * 创建/读取画板状态，并按会话串行落盘。
  */
 export class CanvasStore {
+  /** @param {{ dir?: string, logger?: any }} [options] */
   constructor({ dir, logger } = {}) {
-    if (typeof dir !== 'string' || dir.length === 0) throw new Error('CanvasStore 需要 dir');
+    if (typeof dir !== "string" || dir.length === 0)
+      throw new Error("CanvasStore 需要 dir");
     this.dir = dir;
     this.logger = logger;
     this.states = new Map();
@@ -26,7 +32,9 @@ export class CanvasStore {
     if (cached !== undefined) return cached;
     const pending = this.loads.get(key);
     if (pending !== undefined) return pending;
-    const load = this.load(key).finally(() => { this.loads.delete(key); });
+    const load = this.load(key).finally(() => {
+      this.loads.delete(key);
+    });
     this.loads.set(key, load);
     return load;
   }
@@ -55,15 +63,15 @@ export class CanvasStore {
   async setAgentCanvas(sessionId, { svg, title, source, sourceTurn }) {
     const state = await this.get(sessionId);
     state.agent = {
-      svg: String(svg ?? ''),
-      title: String(title ?? ''),
+      svg: String(svg ?? ""),
+      title: String(title ?? ""),
       revision: state.agent.revision + 1,
       updatedAt: Date.now(),
       sourceTurn: Number.isFinite(Number(sourceTurn)) ? Number(sourceTurn) : 0,
-      source: source === 'main' ? 'main' : 'auto',
-      error: '',
+      source: source === "main" ? "main" : "auto",
+      error: "",
     };
-    state.visual = { status: 'ready', error: '', startedAt: 0 };
+    state.visual = { status: "ready", error: "", startedAt: 0 };
     this.scheduleWrite(sessionId);
     return state;
   }
@@ -71,17 +79,22 @@ export class CanvasStore {
   /** 清空 Agent 画板。 */
   async clearAgentCanvas(sessionId) {
     const state = await this.get(sessionId);
-    if (state.agent.svg === '' && state.agent.title === '' && state.agent.error === '') return state;
+    if (
+      state.agent.svg === "" &&
+      state.agent.title === "" &&
+      state.agent.error === ""
+    )
+      return state;
     state.agent = {
-      svg: '',
-      title: '',
+      svg: "",
+      title: "",
       revision: state.agent.revision + 1,
       updatedAt: Date.now(),
       sourceTurn: 0,
-      source: 'auto',
-      error: '',
+      source: "auto",
+      error: "",
     };
-    state.visual = { status: 'idle', error: '', startedAt: 0 };
+    state.visual = { status: "idle", error: "", startedAt: 0 };
     this.scheduleWrite(sessionId);
     return state;
   }
@@ -89,29 +102,35 @@ export class CanvasStore {
   /** 记录 Agent 画板错误；保留旧图。 */
   async setAgentError(sessionId, message) {
     const state = await this.get(sessionId);
-    const error = String(message ?? '').slice(0, 2000);
+    const error = String(message ?? "").slice(0, 2000);
     state.agent = { ...state.agent, error };
-    state.visual = { status: 'error', error, startedAt: state.visual.startedAt };
+    state.visual = {
+      status: "error",
+      error,
+      startedAt: state.visual.startedAt,
+    };
     this.scheduleWrite(sessionId);
     return state;
   }
 
   /** 更新内存中的视觉运行状态（不落盘）。 */
-  async setVisual(sessionId, status, error = '') {
+  async setVisual(sessionId, status, error = "") {
     const state = await this.get(sessionId);
     state.visual = {
       status,
-      error: String(error ?? '').slice(0, 2000),
-      startedAt: status === 'drawing' ? Date.now() : 0,
+      error: String(error ?? "").slice(0, 2000),
+      startedAt: status === "drawing" ? Date.now() : 0,
     };
-    if (status === 'drawing' || status === 'skipped') state.agent = { ...state.agent, error: '' };
+    if (status === "drawing" || status === "skipped")
+      state.agent = { ...state.agent, error: "" };
     return state;
   }
 
   /** 更新设置。 */
   async setSettings(sessionId, patch) {
     const state = await this.get(sessionId);
-    if (typeof patch?.autoDraw === 'boolean') state.settings.autoDraw = patch.autoDraw;
+    if (typeof patch?.autoDraw === "boolean")
+      state.settings.autoDraw = patch.autoDraw;
     this.scheduleWrite(sessionId);
     return state;
   }
@@ -119,7 +138,7 @@ export class CanvasStore {
   /** 记录 sidecar child id，供宿主重启后 cold-resume。 */
   async setSidecarChildId(sessionId, childId) {
     const state = await this.get(sessionId);
-    state.sidecarChildId = String(childId ?? '');
+    state.sidecarChildId = String(childId ?? "");
     this.scheduleWrite(sessionId);
     return state;
   }
@@ -168,7 +187,11 @@ export class CanvasStore {
   /** 等待所有落盘完成。 */
   async flushAll() {
     while (this.writes.size > 0) {
-      await Promise.all([...this.writes.values()].map(promise => promise.catch(() => undefined)));
+      await Promise.all(
+        [...this.writes.values()].map((promise) =>
+          promise.catch(() => undefined),
+        ),
+      );
     }
   }
 
@@ -183,11 +206,12 @@ export class CanvasStore {
   async load(sessionId) {
     const empty = emptyState(sessionId);
     try {
-      const text = await readFile(this.pathFor(sessionId), 'utf8');
+      const text = await readFile(this.pathFor(sessionId), "utf8");
       const parsed = JSON.parse(text);
       this.states.set(sessionId, restoreState(sessionId, parsed));
     } catch (error) {
-      if (error?.code !== 'ENOENT') this.logger?.warn?.(`[echo-sketch] 读取画板状态失败: ${String(error)}`);
+      if (error?.code !== "ENOENT")
+        this.logger?.warn?.(`[echo-sketch] 读取画板状态失败: ${String(error)}`);
       this.states.set(sessionId, empty);
     }
     return this.states.get(sessionId);
@@ -197,13 +221,15 @@ export class CanvasStore {
   scheduleWrite(sessionId) {
     const key = String(sessionId);
     const previous = this.writes.get(key) ?? Promise.resolve();
-    const next = previous
-      .catch(() => undefined)
-      .then(() => this.writeNow(key));
+    const next = previous.catch(() => undefined).then(() => this.writeNow(key));
     this.writes.set(key, next);
     void next
-      .catch(error => this.logger?.warn?.(`[echo-sketch] 写入画板状态失败: ${String(error)}`))
-      .finally(() => { if (this.writes.get(key) === next) this.writes.delete(key); });
+      .catch((error) =>
+        this.logger?.warn?.(`[echo-sketch] 写入画板状态失败: ${String(error)}`),
+      )
+      .finally(() => {
+        if (this.writes.get(key) === next) this.writes.delete(key);
+      });
   }
 
   /** 原子写入当前状态。 */
@@ -214,13 +240,16 @@ export class CanvasStore {
     await this.mkdirPromise;
     const path = this.pathFor(sessionId);
     const temp = `${path}.${process.pid}.tmp`;
-    await writeFile(temp, JSON.stringify(persistedState(state)), 'utf8');
+    await writeFile(temp, JSON.stringify(persistedState(state)), "utf8");
     await rename(temp, path);
   }
 
   /** 会话对应的 JSON 文件路径。 */
   pathFor(sessionId) {
-    const digest = createHash('sha256').update(String(sessionId)).digest('hex').slice(0, 32);
+    const digest = createHash("sha256")
+      .update(String(sessionId))
+      .digest("hex")
+      .slice(0, 32);
     return join(this.dir, `${digest}.json`);
   }
 }
@@ -229,21 +258,26 @@ function emptyState(sessionId) {
   return {
     version: 1,
     sessionId: String(sessionId),
-    user: { strokes: [], svg: '', revision: 0, updatedAt: 0 },
+    user: { strokes: [], svg: "", revision: 0, updatedAt: 0 },
     agent: {
-      svg: '', title: '', revision: 0, updatedAt: 0,
-      sourceTurn: 0, source: 'auto', error: '',
+      svg: "",
+      title: "",
+      revision: 0,
+      updatedAt: 0,
+      sourceTurn: 0,
+      source: "auto",
+      error: "",
     },
     settings: { autoDraw: true },
-    sidecarChildId: '',
+    sidecarChildId: "",
     pushCursorSeq: 0,
-    visual: { status: 'idle', error: '', startedAt: 0 },
+    visual: { status: "idle", error: "", startedAt: 0 },
   };
 }
 
 function restoreState(sessionId, parsed) {
   const state = emptyState(sessionId);
-  if (parsed === null || typeof parsed !== 'object') return state;
+  if (parsed === null || typeof parsed !== "object") return state;
   const { strokes } = normalizeStrokes(parsed.user?.strokes);
   state.user = {
     strokes,
@@ -252,16 +286,17 @@ function restoreState(sessionId, parsed) {
     updatedAt: positiveInt(parsed.user?.updatedAt),
   };
   state.agent = {
-    svg: typeof parsed.agent?.svg === 'string' ? parsed.agent.svg : '',
-    title: typeof parsed.agent?.title === 'string' ? parsed.agent.title : '',
+    svg: typeof parsed.agent?.svg === "string" ? parsed.agent.svg : "",
+    title: typeof parsed.agent?.title === "string" ? parsed.agent.title : "",
     revision: positiveInt(parsed.agent?.revision),
     updatedAt: positiveInt(parsed.agent?.updatedAt),
     sourceTurn: positiveInt(parsed.agent?.sourceTurn),
-    source: parsed.agent?.source === 'main' ? 'main' : 'auto',
-    error: typeof parsed.agent?.error === 'string' ? parsed.agent.error : '',
+    source: parsed.agent?.source === "main" ? "main" : "auto",
+    error: typeof parsed.agent?.error === "string" ? parsed.agent.error : "",
   };
   state.settings.autoDraw = parsed.settings?.autoDraw !== false;
-  state.sidecarChildId = typeof parsed.sidecarChildId === 'string' ? parsed.sidecarChildId : '';
+  state.sidecarChildId =
+    typeof parsed.sidecarChildId === "string" ? parsed.sidecarChildId : "";
   state.pushCursorSeq = positiveInt(parsed.pushCursorSeq);
   return state;
 }

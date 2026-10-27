@@ -1,6 +1,6 @@
 /** 画板图标。 */
 
-import React from 'react';
+import React from "react";
 
 const ICONS = {
   brand: (
@@ -95,7 +95,7 @@ const ICONS = {
 };
 
 /** 内联 SVG 图标。 */
-export function Icon({ name, size = 16, className = '' }) {
+export function Icon({ name, size = 16, className = "" }) {
   return (
     <svg
       className={className}

@@ -1,8 +1,14 @@
 /** 每会话画板客户端状态。 */
 
-import { fetchState, postCanvas, postRedraw, postRenderResult, postSettings } from './api.js';
-import { translate } from './i18n.js';
-import { renderAgentPng, renderUserPng } from './raster.js';
+import {
+  fetchState,
+  postCanvas,
+  postRedraw,
+  postRenderResult,
+  postSettings,
+} from "./api.js";
+import { translate } from "./i18n.js";
+import { renderAgentPng, renderUserPng } from "./raster.js";
 
 const stores = new Map();
 
@@ -25,19 +31,26 @@ function createStore(sessionId, ctx) {
   let saveSeq = 0;
   let savePromise = Promise.resolve();
 
-  const emit = () => { for (const listener of listeners) listener(); };
-  const set = patch => { state = { ...state, ...patch }; emit(); };
+  const emit = () => {
+    for (const listener of listeners) listener();
+  };
+  const set = (patch) => {
+    state = { ...state, ...patch };
+    emit();
+  };
 
-  const applyServer = payload => {
+  const applyServer = (payload) => {
     const next = payload.state;
-    const keepLocalUser = state.dirty && next.user.revision < state.user.revision + 1;
-    const agentSeenRevision = state.viewMode === 'agent'
-      ? next.agent.revision
-      : Math.min(state.agentSeenRevision, next.agent.revision);
+    const keepLocalUser =
+      state.dirty && next.user.revision < state.user.revision + 1;
+    const agentSeenRevision =
+      state.viewMode === "agent"
+        ? next.agent.revision
+        : Math.min(state.agentSeenRevision, next.agent.revision);
     state = {
       ...state,
-      status: 'ready',
-      error: '',
+      status: "ready",
+      error: "",
       user: keepLocalUser ? state.user : next.user,
       agent: next.agent,
       agentSeenRevision,
@@ -55,27 +68,37 @@ function createStore(sessionId, ctx) {
   const refresh = async () => {
     if (inflight !== undefined) return inflight;
     inflight = fetchState(sessionId)
-      .then(payload => applyServer(payload))
-      .catch(error => set({
-        status: state.status === 'loading' ? 'error' : state.status,
-        error: messageOf(error),
-      }))
-      .finally(() => { inflight = undefined; });
+      .then((payload) => applyServer(payload))
+      .catch((error) =>
+        set({
+          status: state.status === "loading" ? "error" : state.status,
+          error: messageOf(error),
+        }),
+      )
+      .finally(() => {
+        inflight = undefined;
+      });
     return inflight;
   };
 
-  const saveUser = strokes => {
+  const saveUser = (strokes) => {
     const seq = ++saveSeq;
-    state = { ...state, user: { ...state.user, strokes }, dirty: true, saving: true, error: '' };
+    state = {
+      ...state,
+      user: { ...state.user, strokes },
+      dirty: true,
+      saving: true,
+      error: "",
+    };
     emit();
-    savePromise = postCanvas({ sessionId, kind: 'user', strokes })
-      .then(payload => {
+    savePromise = postCanvas({ sessionId, kind: "user", strokes })
+      .then((payload) => {
         if (seq !== saveSeq) return;
         applyServer({ ...payload, renderRequest: null });
         state = { ...state, dirty: false, saving: false };
         emit();
       })
-      .catch(error => {
+      .catch((error) => {
         if (seq !== saveSeq) return;
         state = { ...state, saving: false, error: messageOf(error) };
         emit();
@@ -90,21 +113,31 @@ function createStore(sessionId, ctx) {
     }
   };
 
-  const handleRenderRequest = async request => {
-    const requestId = String(request?.requestId ?? '');
-    if (requestId === '' || handled.has(requestId)) return;
+  const handleRenderRequest = async (request) => {
+    const requestId = String(request?.requestId ?? "");
+    if (requestId === "" || handled.has(requestId)) return;
     handled.add(requestId);
-    const target = request?.target === 'user' ? 'user' : 'agent';
+    const target = request?.target === "user" ? "user" : "agent";
     try {
-      if (target === 'user') await flush();
-      const rendered = target === 'user'
-        ? renderUserPng(state.user.strokes)
-        : await renderAgentPng(state.agent.svg);
-      const revision = target === 'user' ? state.user.revision : state.agent.revision;
+      if (target === "user") await flush();
+      const rendered =
+        target === "user"
+          ? renderUserPng(state.user.strokes)
+          : await renderAgentPng(state.agent.svg);
+      const revision =
+        target === "user" ? state.user.revision : state.agent.revision;
       await postRenderResult({
         sessionId,
         requestId,
-        images: [{ kind: target, revision, png: rendered.png, width: rendered.width, height: rendered.height }],
+        images: [
+          {
+            kind: target,
+            revision,
+            png: rendered.png,
+            width: rendered.width,
+            height: rendered.height,
+          },
+        ],
         errors: [],
       });
     } catch (error) {
@@ -117,26 +150,49 @@ function createStore(sessionId, ctx) {
     }
   };
 
-  const sendToAgent = async note => {
-    set({ sending: true, error: '' });
+  const sendToAgent = async (note) => {
+    set({ sending: true, error: "" });
     try {
       await flush();
-      const content = [{ type: 'text', text: String(note ?? '').trim() || translate('prompt.fallback') }];
+      /** @type {any[]} */
+      const content = [
+        {
+          type: "text",
+          text: String(note ?? "").trim() || translate("prompt.fallback"),
+        },
+      ];
       if (state.user.strokes.length > 0) {
         const rendered = renderUserPng(state.user.strokes);
-        content.push({ type: 'image', mediaType: 'image/png', data: rendered.png, name: translate('file.user') });
+        content.push({
+          type: "image",
+          mediaType: "image/png",
+          data: rendered.png,
+          name: translate("file.user"),
+        });
       }
       if (state.agent.svg.length > 0) {
         try {
           const rendered = await renderAgentPng(state.agent.svg);
-          content.push({ type: 'image', mediaType: 'image/png', data: rendered.png, name: translate('file.agent') });
-        } catch {
-        }
+          content.push({
+            type: "image",
+            mediaType: "image/png",
+            data: rendered.png,
+            name: translate("file.agent"),
+          });
+        } catch {}
       }
-      await ctx.sessions.using(sessionId, { source: 'echo-sketch' }, async reference => {
-        const result = await reference.binding.session.prompt(content, 'queue');
-        if (!result.ok) throw new Error(result.error?.message ?? translate('error.send'));
-      });
+      await ctx.sessions.using(
+        sessionId,
+        { source: "echo-sketch" },
+        async (reference) => {
+          const result = await reference.binding.session.prompt(
+            content,
+            "queue",
+          );
+          if (!result.ok)
+            throw new Error(result.error?.message ?? translate("error.send"));
+        },
+      );
     } catch (error) {
       set({ error: messageOf(error) });
     } finally {
@@ -144,7 +200,7 @@ function createStore(sessionId, ctx) {
     }
   };
 
-  const setAutoDraw = async value => {
+  const setAutoDraw = async (value) => {
     set({ settings: { ...state.settings, autoDraw: value } });
     try {
       const payload = await postSettings({ sessionId, autoDraw: value });
@@ -156,17 +212,24 @@ function createStore(sessionId, ctx) {
   };
 
   const redraw = async () => {
-    set({ visual: { ...state.visual, status: 'drawing', error: '' } });
+    set({ visual: { ...state.visual, status: "drawing", error: "" } });
     try {
       await postRedraw({ sessionId });
     } catch (error) {
-      set({ error: messageOf(error), visual: { ...state.visual, status: 'error' } });
+      set({
+        error: messageOf(error),
+        visual: { ...state.visual, status: "error" },
+      });
     }
   };
 
   const clearAgent = async () => {
     try {
-      const payload = await postCanvas({ sessionId, kind: 'agent', clear: true });
+      const payload = await postCanvas({
+        sessionId,
+        kind: "agent",
+        clear: true,
+      });
       applyServer({ ...payload, renderRequest: null });
     } catch (error) {
       set({ error: messageOf(error) });
@@ -175,7 +238,7 @@ function createStore(sessionId, ctx) {
 
   return {
     getSnapshot: () => state,
-    subscribe: listener => {
+    subscribe: (listener) => {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
@@ -186,27 +249,35 @@ function createStore(sessionId, ctx) {
     setAutoDraw,
     redraw,
     clearAgent,
-    setViewMode: viewMode => set({
-      viewMode,
-      ...(viewMode === 'agent' ? { agentSeenRevision: state.agent.revision } : {}),
-    }),
+    setViewMode: (viewMode) =>
+      set({
+        viewMode,
+        ...(viewMode === "agent"
+          ? { agentSeenRevision: state.agent.revision }
+          : {}),
+      }),
   };
 }
 
 function initialState() {
   return {
-    status: 'loading',
-    error: '',
+    status: "loading",
+    error: "",
     user: { strokes: [], revision: 0, updatedAt: 0 },
     agent: {
-      svg: '', title: '', revision: 0, updatedAt: 0,
-      sourceTurn: 0, source: 'auto', error: '',
+      svg: "",
+      title: "",
+      revision: 0,
+      updatedAt: 0,
+      sourceTurn: 0,
+      source: "auto",
+      error: "",
     },
     settings: { autoDraw: true },
-    visual: { status: 'idle', error: '', startedAt: 0 },
+    visual: { status: "idle", error: "", startedAt: 0 },
     imageSupport: null,
     renderRequest: null,
-    viewMode: 'agent',
+    viewMode: "agent",
     agentSeenRevision: 0,
     saving: false,
     sending: false,

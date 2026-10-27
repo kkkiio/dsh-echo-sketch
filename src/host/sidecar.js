@@ -1,25 +1,25 @@
 /** Durable visual subagent 的创建、复用与 delta push。 */
 
-import { randomUUID } from 'node:crypto';
+import { randomUUID } from "node:crypto";
 
-export const SIDECAR_PREFIX = 'echo-sketch-sidecar-';
-export const VISUAL_PRESET_ID = 'echo-sketch-visual';
+export const SIDECAR_PREFIX = "echo-sketch-sidecar-";
+export const VISUAL_PRESET_ID = "echo-sketch-visual";
 
 const VISUAL_PROMPT = [
-  'You are the visual sidecar agent for the main conversation.',
-  'Each input is an incremental transcript delta since the last turn (excluding reasoning).',
-  '',
-  '## When to Draw',
-  '- If the latest assistant response contains ideas, structures, workflows, comparisons, or states worth visualizing, draw a clear, self-contained SVG diagram by calling `sketchpad_draw({ title, svg })`.',
-  '- If the turn is only greetings, brief acknowledgments, repetitions, or the current diagram remains accurate, do not call any tool and finish immediately.',
-  '- You may call `sketchpad_draw` multiple times; if the tool returns an error, fix the SVG and retry.',
-  '',
-  '## Visual-First Principles (Show, Do Not Write)',
-  '- Communicate through visual elements: shapes, icons, spatial layout, containment, directional arrows, timelines, scales, and color coding.',
-  '- Do NOT turn the SVG into a text slide, markdown card, or bulleted list.',
-  '- Keep `<text>` strictly to short labels (1-4 words per label). Never write full sentences, paragraphs, or code blocks inside the SVG.',
-  '- Whenever a concept can be represented by a visual metaphor, path, icon, or structural relationship instead of words, always prefer the visual form.',
-].join('\n');
+  "You are the visual sidecar agent for the main conversation.",
+  "Each input is an incremental transcript delta since the last turn (excluding reasoning).",
+  "",
+  "## When to Draw",
+  "- If the latest assistant response contains ideas, structures, workflows, comparisons, or states worth visualizing, draw a clear, self-contained SVG diagram by calling `sketchpad_draw({ title, svg })`.",
+  "- If the turn is only greetings, brief acknowledgments, repetitions, or the current diagram remains accurate, do not call any tool and finish immediately.",
+  "- You may call `sketchpad_draw` multiple times; if the tool returns an error, fix the SVG and retry.",
+  "",
+  "## Visual-First Principles (Show, Do Not Write)",
+  "- Communicate through visual elements: shapes, icons, spatial layout, containment, directional arrows, timelines, scales, and color coding.",
+  "- Do NOT turn the SVG into a text slide, markdown card, or bulleted list.",
+  "- Keep `<text>` strictly to short labels (1-4 words per label). Never write full sentences, paragraphs, or code blocks inside the SVG.",
+  "- Whenever a concept can be represented by a visual metaphor, path, icon, or structural relationship instead of words, always prefer the visual form.",
+].join("\n");
 
 const PUSH_TIMEOUT_MS = 120_000;
 const CHILD_TIMEOUT_MS = 15_000;
@@ -28,6 +28,7 @@ const CHILD_TIMEOUT_MS = 15_000;
  * 管理每个主会话一个的 visual sidecar。
  */
 export class SidecarManager {
+  /** @param {{ ctx: any, store: any, logger?: any }} options */
   constructor({ ctx, store, logger }) {
     this.ctx = ctx;
     this.store = store;
@@ -40,12 +41,12 @@ export class SidecarManager {
 
   /** 是否为 visual sidecar child。 */
   isSidecar(id) {
-    return String(id ?? '').startsWith(SIDECAR_PREFIX);
+    return String(id ?? "").startsWith(SIDECAR_PREFIX);
   }
 
   /** sidecar child 对应的主会话 id。 */
   mainSessionOf(id) {
-    return this.childToMain.get(String(id ?? ''));
+    return this.childToMain.get(String(id ?? ""));
   }
 
   /** 处理 agent/created：创建与 cold resume 都会调用。 */
@@ -54,15 +55,19 @@ export class SidecarManager {
     const childId = String(agent.id);
     const mainSessionId = this.mainSessionOf(childId);
     if (mainSessionId !== undefined) {
-      this.store.setVisual(mainSessionId, 'drawing').catch(() => undefined);
+      this.store.setVisual(mainSessionId, "drawing").catch(() => undefined);
     }
     agent.ctx.systemPrompt.context({
-      name: 'echo-sketch:visual',
+      name: "echo-sketch:visual",
       order: 130,
       text: VISUAL_PROMPT,
     });
-    agent.ctx.tools.restrict({ allow: ['sketchpad_draw'] });
-    agent.ctx.tools.guard(exec => (exec.name === 'sketchpad_draw' ? undefined : 'visual sidecar 只允许调用 sketchpad_draw'));
+    agent.ctx.tools.restrict({ allow: ["sketchpad_draw"] });
+    agent.ctx.tools.guard((exec) =>
+      exec.name === "sketchpad_draw"
+        ? undefined
+        : "visual sidecar 只允许调用 sketchpad_draw",
+    );
     const route = this.routes.get(childId);
     if (route !== undefined) this.selectRoute(agent, route);
     this.resolveWaiter(childId, agent);
@@ -71,20 +76,23 @@ export class SidecarManager {
   /**
    * 向 sidecar push 一段上下文；首次调用会创建 child。
    * 返回 childId。
+   * @param {any} mainAgent
+   * @param {any} content
+   * @param {{ signal?: AbortSignal, retry?: boolean }} [options]
    */
   async push(mainAgent, content, { signal, retry = true } = {}) {
     const state = await this.store.get(mainAgent.id);
     let childId = state.sidecarChildId;
-    if (childId === '') {
+    if (childId === "") {
       childId = `${SIDECAR_PREFIX}${randomUUID()}`;
       this.childToMain.set(childId, String(mainAgent.id));
       await this.store.setSidecarChildId(mainAgent.id, childId);
       const route = await this.prepareRoute(childId, mainAgent);
       const activation = await this.ctx.subagents.startActivation({
-        provider: 'spawn',
+        provider: "spawn",
         childId,
-        label: '画板 Sidecar',
-        delivery: 'caller',
+        label: "画板 Sidecar",
+        delivery: "caller",
         signal,
         request: {
           parent: mainAgent,
@@ -95,7 +103,7 @@ export class SidecarManager {
       });
       this.activations.set(String(mainAgent.id), { childId, activation });
       const child = await this.waitForChild(childId);
-      if (child === undefined) throw new Error('visual sidecar 启动超时');
+      if (child === undefined) throw new Error("visual sidecar 启动超时");
       await this.awaitIdle(child, signal);
       return childId;
     }
@@ -105,15 +113,17 @@ export class SidecarManager {
     if (live !== undefined) this.selectRoute(live, route);
     const waiter = live === undefined ? this.waitForChild(childId) : undefined;
     try {
-      await this.ctx.subagents.sendMessage(mainAgent, childId, content, { signal });
+      await this.ctx.subagents.sendMessage(mainAgent, childId, content, {
+        signal,
+      });
     } catch (error) {
       if (!retry || signal?.aborted) throw error;
       this.childToMain.delete(childId);
-      await this.store.setSidecarChildId(mainAgent.id, '');
+      await this.store.setSidecarChildId(mainAgent.id, "");
       return this.push(mainAgent, content, { signal, retry: false });
     }
-    const child = live ?? await waiter;
-    if (child === undefined) throw new Error('visual sidecar 未能恢复');
+    const child = live ?? (await waiter);
+    if (child === undefined) throw new Error("visual sidecar 未能恢复");
     this.selectRoute(child, route);
     await this.awaitIdle(child, signal);
     return childId;
@@ -124,35 +134,43 @@ export class SidecarManager {
     const key = String(mainSessionId);
     const record = this.activations.get(key);
     this.activations.delete(key);
-    this.store.setVisual(key, 'idle').catch(() => undefined);
+    this.store.setVisual(key, "idle").catch(() => undefined);
     if (record === undefined) return;
-    await record.activation.dispose().catch(error => {
-      this.logger?.warn?.(`[echo-sketch] sidecar dispose failed: ${String(error)}`);
+    await record.activation.dispose().catch((error) => {
+      this.logger?.warn?.(
+        `[echo-sketch] sidecar dispose failed: ${String(error)}`,
+      );
     });
   }
 
   /** 释放所有 activation。 */
   async disposeAll() {
     const keys = [...this.activations.keys()];
-    await Promise.all(keys.map(key => this.dispose(key)));
+    await Promise.all(keys.map((key) => this.dispose(key)));
   }
 
   /** 解析主 Agent 当前路由，并决定 sidecar 的 reasoning effort。 */
   async prepareRoute(childId, mainAgent) {
-    const config = mainAgent.session?.requestHeader?.()?.config ?? mainAgent.options ?? {};
+    const config =
+      mainAgent.session?.requestHeader?.()?.config ?? mainAgent.options ?? {};
     const route = {
       provider: config.provider,
       model: config.model,
     };
-    if (typeof route.provider !== 'string' || typeof route.model !== 'string') {
-      throw new Error('主 Agent 当前没有可用的 provider/model');
+    if (typeof route.provider !== "string" || typeof route.model !== "string") {
+      throw new Error("主 Agent 当前没有可用的 provider/model");
     }
     try {
-      const info = await this.ctx.llm.resolveModelInfo(route.provider, route.model);
-      const efforts = Array.isArray(info?.reasoning?.efforts) ? info.reasoning.efforts : [];
-      if (efforts.some(effort => effort?.id === 'low')) route.reasoningEffort = 'low';
-    } catch {
-    }
+      const info = await this.ctx.llm.resolveModelInfo(
+        route.provider,
+        route.model,
+      );
+      const efforts = Array.isArray(info?.reasoning?.efforts)
+        ? info.reasoning.efforts
+        : [];
+      if (efforts.some((effort) => effort?.id === "low"))
+        route.reasoningEffort = "low";
+    } catch {}
     this.routes.set(String(childId), route);
     return route;
   }
@@ -163,10 +181,14 @@ export class SidecarManager {
       agent.model.select({
         provider: route.provider,
         model: route.model,
-        ...(route.reasoningEffort === undefined ? {} : { reasoningEffort: route.reasoningEffort }),
+        ...(route.reasoningEffort === undefined
+          ? {}
+          : { reasoningEffort: route.reasoningEffort }),
       });
     } catch (error) {
-      this.logger?.warn?.(`[echo-sketch] sidecar model select failed: ${String(error)}`);
+      this.logger?.warn?.(
+        `[echo-sketch] sidecar model select failed: ${String(error)}`,
+      );
     }
   }
 
@@ -175,7 +197,9 @@ export class SidecarManager {
     return {
       provider: route.provider,
       model: route.model,
-      ...(route.reasoningEffort === undefined ? {} : { reasoningEffort: route.reasoningEffort }),
+      ...(route.reasoningEffort === undefined
+        ? {}
+        : { reasoningEffort: route.reasoningEffort }),
       maxTokens: 8192,
     };
   }
@@ -184,12 +208,12 @@ export class SidecarManager {
   waitForChild(childId) {
     const live = this.ctx.agents.get(childId);
     if (live !== undefined) return Promise.resolve(live);
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       const timer = setTimeout(() => {
         this.waiters.delete(childId);
         resolve(undefined);
       }, CHILD_TIMEOUT_MS);
-      this.waiters.set(childId, agent => {
+      this.waiters.set(childId, (agent) => {
         clearTimeout(timer);
         resolve(agent);
       });
@@ -206,13 +230,20 @@ export class SidecarManager {
 
   /** 等待 child idle；超时或 abort 抛错。 */
   async awaitIdle(child, signal) {
-    if (signal?.aborted) throw new Error('visual sidecar 请求已取消');
+    if (signal?.aborted) throw new Error("visual sidecar 请求已取消");
     let timer;
     const timeout = new Promise((_, reject) => {
-      timer = setTimeout(() => reject(new Error('visual sidecar 绘制超时')), PUSH_TIMEOUT_MS);
+      timer = setTimeout(
+        () => reject(new Error("visual sidecar 绘制超时")),
+        PUSH_TIMEOUT_MS,
+      );
     });
     const aborted = new Promise((_, reject) => {
-      signal?.addEventListener('abort', () => reject(signal.reason ?? new Error('请求已取消')), { once: true });
+      signal?.addEventListener(
+        "abort",
+        () => reject(signal.reason ?? new Error("请求已取消")),
+        { once: true },
+      );
     });
     try {
       await Promise.race([child.whenIdle(), timeout, aborted]);

@@ -1,63 +1,68 @@
 /** sketchpad_draw / sketchpad_read 工具定义。 */
 
-import { defineTool } from '@deepseek-ai/dsh-tools';
-import { normalizeAgentSvg } from './canvas-svg.js';
-
-const IMAGE_SCHEMA = {
-  type: 'object',
-  additionalProperties: false,
-  properties: {
-    kind: { type: 'string', required: true, enum: ['user', 'agent'] },
-    revision: { type: 'integer', required: true },
-    attachmentId: { type: 'string', required: true },
-    mediaType: { type: 'string', required: true },
-    bytes: { type: 'integer', required: true },
-    width: { type: 'integer', required: true },
-    height: { type: 'integer', required: true },
-    name: { type: 'string' },
-  },
-};
+import { defineTool } from "@deepseek-ai/dsh-tools";
+import { normalizeAgentSvg } from "./canvas-svg.js";
 
 /**
  * 创建并注册两个工具。
- * @param {object} ctx
- * @param {object} deps
+ * @param {any} ctx
+ * @param {{ store: any, bridge: any, sidecar: any }} deps
  * @returns {Array<() => void>}
  */
 export function registerSketchpadTools(ctx, { store, bridge, sidecar }) {
   const draw = defineTool({
-    name: 'sketchpad_draw',
-    description: '更新 Agent 视觉画板：传入一张独立 SVG。自动视觉 sidecar 会调用它；主 Agent 也可在用户明确要求改图时调用。',
+    name: "sketchpad_draw",
+    description:
+      "更新 Agent 视觉画板：传入一张独立 SVG。自动视觉 sidecar 会调用它；主 Agent 也可在用户明确要求改图时调用。",
     parameters: {
-      title: { type: 'string', required: true, description: '图示标题，最多 80 字符。' },
-      svg: { type: 'string', required: true, description: '完整、独立的 SVG 文档，必须包含 xmlns 与 viewBox。' },
+      title: {
+        type: "string",
+        required: true,
+        description: "图示标题，最多 80 字符。",
+      },
+      svg: {
+        type: "string",
+        required: true,
+        description: "完整、独立的 SVG 文档，必须包含 xmlns 与 viewBox。",
+      },
     },
     output: {
       schema: {
-        type: 'object',
+        type: "object",
         additionalProperties: false,
         properties: {
-          title: { type: 'string', required: true },
-          revision: { type: 'integer', required: true },
+          title: { type: "string", required: true },
+          revision: { type: "integer", required: true },
         },
       },
-      render: (_args, value) => [{ type: 'text', text: `已更新画板：${value.title}（revision ${value.revision}）` }],
+      render: (_args, value) => [
+        {
+          type: "text",
+          text: `已更新画板：${value.title}（revision ${value.revision}）`,
+        },
+      ],
     },
     isConcurrencySafe: () => false,
     async execute(args, exec) {
       const normalized = normalizeAgentSvg(args.svg);
-      if (!normalized.ok) throw new Error(normalized.error);
+      if (normalized.ok === false) throw new Error(normalized.error);
       const mainSessionId = sidecar.isSidecar(exec.agent.id)
         ? sidecar.mainSessionOf(exec.agent.id)
         : String(exec.agent.id);
-      if (mainSessionId === undefined) throw new Error('找不到这个 sidecar 对应的主会话');
+      if (mainSessionId === undefined)
+        throw new Error("找不到这个 sidecar 对应的主会话");
       const mainAgent = ctx.agents.get(mainSessionId);
       const turn = mainAgent === undefined ? 0 : turnOf(ctx, mainAgent);
-      const title = String(args.title ?? '').trim().slice(0, 80) || normalized.title || 'Agent 图示';
+      const title =
+        String(args.title ?? "")
+          .trim()
+          .slice(0, 80) ||
+        normalized.title ||
+        "Agent 图示";
       const state = await store.setAgentCanvas(mainSessionId, {
         svg: normalized.svg,
         title,
-        source: sidecar.isSidecar(exec.agent.id) ? 'auto' : 'main',
+        source: sidecar.isSidecar(exec.agent.id) ? "auto" : "main",
         sourceTurn: turn,
       });
       return { title, revision: state.agent.revision };
@@ -65,30 +70,53 @@ export function registerSketchpadTools(ctx, { store, bridge, sidecar }) {
   });
 
   const read = defineTool({
-    name: 'sketchpad_read',
-    description: '读取用户画板或 Agent 画板，返回图片。用户提到草图/画板/图示，或需要对比两张画板时调用。',
+    name: "sketchpad_read",
+    description:
+      "读取用户画板或 Agent 画板，返回图片。用户提到草图/画板/图示，或需要对比两张画板时调用。",
     parameters: {
       target: {
-        type: 'string',
+        type: "string",
         required: true,
-        enum: ['user', 'agent'],
-        description: 'user=用户草图；agent=Agent 图示。',
+        enum: ["user", "agent"],
+        description: "user=用户草图；agent=Agent 图示。",
       },
     },
     output: {
       schema: {
-        type: 'object',
+        type: "object",
         additionalProperties: false,
         properties: {
-          note: { type: 'string', required: true },
-          images: { type: 'array', required: true, items: IMAGE_SCHEMA },
+          note: { type: "string", required: true },
+          images: {
+            type: "array",
+            required: true,
+            items: {
+              type: "object",
+              additionalProperties: false,
+              properties: {
+                kind: {
+                  type: "string",
+                  required: true,
+                  enum: ["user", "agent"],
+                },
+                revision: { type: "integer", required: true },
+                attachmentId: { type: "string", required: true },
+                mediaType: { type: "string", required: true },
+                bytes: { type: "integer", required: true },
+                width: { type: "integer", required: true },
+                height: { type: "integer", required: true },
+                name: { type: "string" },
+              },
+            },
+          },
         },
       },
       render: (_args, value) => {
-        const blocks = [{ type: 'text', text: value.note || '画板图片如下。' }];
+        /** @type {any[]} */
+        const blocks = [{ type: "text", text: value.note || "画板图片如下。" }];
         for (const image of value.images) {
           blocks.push({
-            type: 'image',
+            type: "image",
             attachment: {
               attachmentId: image.attachmentId,
               mediaType: image.mediaType,
@@ -107,9 +135,14 @@ export function registerSketchpadTools(ctx, { store, bridge, sidecar }) {
       const mainSessionId = sidecar.isSidecar(exec.agent.id)
         ? sidecar.mainSessionOf(exec.agent.id)
         : String(exec.agent.id);
-      if (mainSessionId === undefined) throw new Error('找不到这个 sidecar 对应的主会话');
-      const result = await bridge.request(mainSessionId, args.target, exec.signal);
-      const images = result.images.map(entry => ({
+      if (mainSessionId === undefined)
+        throw new Error("找不到这个 sidecar 对应的主会话");
+      const result = await bridge.request(
+        mainSessionId,
+        args.target,
+        exec.signal,
+      );
+      const images = result.images.map((entry) => ({
         kind: args.target,
         revision: entry.revision,
         attachmentId: String(entry.ref.attachmentId),
@@ -117,9 +150,16 @@ export function registerSketchpadTools(ctx, { store, bridge, sidecar }) {
         bytes: Number(entry.ref.bytes),
         width: Number(entry.ref.width),
         height: Number(entry.ref.height),
-        ...(entry.ref.name === undefined ? {} : { name: String(entry.ref.name) }),
+        ...(entry.ref.name === undefined
+          ? {}
+          : { name: String(entry.ref.name) }),
       }));
-      return { note: result.note || (images.length > 0 ? '画板图片如下。' : '画板暂时没有可用图片。'), images };
+      return {
+        note:
+          result.note ||
+          (images.length > 0 ? "画板图片如下。" : "画板暂时没有可用图片。"),
+        images,
+      };
     },
   });
 

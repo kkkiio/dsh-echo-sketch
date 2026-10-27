@@ -1,6 +1,6 @@
 /** 主 Agent 读取画板时的按需渲染桥。 */
 
-import { randomUUID } from 'node:crypto';
+import { randomUUID } from "node:crypto";
 
 const MAX_PNG_BYTES = 8 * 1024 * 1024;
 
@@ -8,6 +8,7 @@ const MAX_PNG_BYTES = 8 * 1024 * 1024;
  * 维护每个会话的 PNG 渲染请求；客户端轮询到请求后回传 base64。
  */
 export class RenderBridge {
+  /** @param {{ ctx?: any, store?: any, logger?: any, timeoutMs?: number }} [options] */
   constructor({ ctx, store, logger, timeoutMs = 8000 } = {}) {
     this.ctx = ctx;
     this.store = store;
@@ -32,9 +33,13 @@ export class RenderBridge {
   async request(sessionId, target, signal) {
     const key = String(sessionId);
     const previous = this.queues.get(key) ?? Promise.resolve();
-    const next = previous.catch(() => undefined).then(() => this.requestNow(key, target, signal));
+    const next = previous
+      .catch(() => undefined)
+      .then(() => this.requestNow(key, target, signal));
     this.queues.set(key, next);
-    void next.finally(() => { if (this.queues.get(key) === next) this.queues.delete(key); });
+    void next.finally(() => {
+      if (this.queues.get(key) === next) this.queues.delete(key);
+    });
     return next;
   }
 
@@ -55,7 +60,8 @@ export class RenderBridge {
     }
     pending.resolve({
       images: accepted,
-      note: accepted.length > 0 ? '' : failures[0] ?? '画板没有返回可用的图片',
+      note:
+        accepted.length > 0 ? "" : (failures[0] ?? "画板没有返回可用的图片"),
       errors: failures,
     });
     return true;
@@ -67,7 +73,7 @@ export class RenderBridge {
     const pending = this.pending.get(key);
     if (pending !== undefined) {
       clearTimeout(pending.timer);
-      pending.resolve({ images: [], note: '会话已结束', errors: [] });
+      pending.resolve({ images: [], note: "会话已结束", errors: [] });
     }
     this.pending.delete(key);
     this.cache.delete(key);
@@ -76,40 +82,48 @@ export class RenderBridge {
 
   /** 单次请求实现：缓存命中直接返回，否则挂起等待客户端。 */
   async requestNow(sessionId, target, signal) {
-    const normalizedTarget = target === 'user' ? 'user' : 'agent';
+    const normalizedTarget = target === "user" ? "user" : "agent";
     const state = await this.store.get(sessionId);
     const revision = state[normalizedTarget].revision;
     const cached = this.cache.get(sessionId)?.[normalizedTarget];
     if (cached?.revision === revision) {
-      return { images: [cached], note: '', errors: [] };
+      return { images: [cached], note: "", errors: [] };
     }
-    if (signal?.aborted) return { images: [], note: '请求已取消', errors: [] };
-    const attachments = this.ctx.get('attachments');
+    if (signal?.aborted) return { images: [], note: "请求已取消", errors: [] };
+    const attachments = this.ctx.get("attachments");
     if (attachments === undefined) {
-      return { images: [], note: '当前部署没有附件服务，无法把画板转成图片', errors: [] };
+      return {
+        images: [],
+        note: "当前部署没有附件服务，无法把画板转成图片",
+        errors: [],
+      };
     }
     const existing = this.pending.get(sessionId);
     if (existing !== undefined) {
-      return { images: [], note: '画板正在渲染中，请稍后重试', errors: [] };
+      return { images: [], note: "画板正在渲染中，请稍后重试", errors: [] };
     }
     const requestId = randomUUID();
-    const promise = new Promise(resolve => {
+    const promise = new Promise((resolve) => {
       const timer = setTimeout(() => {
         this.pending.delete(sessionId);
-        resolve({ images: [], note: '画板未在 8 秒内响应；请打开双画板后重试', errors: [] });
+        resolve({
+          images: [],
+          note: "画板未在 8 秒内响应；请打开双画板后重试",
+          errors: [],
+        });
       }, this.timeoutMs);
       const onAbort = () => {
         clearTimeout(timer);
         this.pending.delete(sessionId);
-        resolve({ images: [], note: '请求已取消', errors: [] });
+        resolve({ images: [], note: "请求已取消", errors: [] });
       };
-      signal?.addEventListener('abort', onAbort, { once: true });
+      signal?.addEventListener("abort", onAbort, { once: true });
       this.pending.set(sessionId, {
         requestId,
         target: normalizedTarget,
         timer,
-        resolve: value => {
-          signal?.removeEventListener('abort', onAbort);
+        resolve: (value) => {
+          signal?.removeEventListener("abort", onAbort);
           resolve(value);
         },
       });
@@ -119,19 +133,24 @@ export class RenderBridge {
 
   /** 校验并保存客户端回传的一张 PNG。 */
   async saveImage(sessionId, state, target, image) {
-    if (image?.kind !== target) return { ok: false, error: `渲染结果类型不匹配: ${String(image?.kind)}` };
+    if (image?.kind !== target)
+      return { ok: false, error: `渲染结果类型不匹配: ${String(image?.kind)}` };
     const revision = Number(image.revision);
-    if (revision !== state[target].revision) return { ok: false, error: '画板 revision 已变化，丢弃旧渲染结果' };
-    if (typeof image.png !== 'string' || image.png.length === 0) return { ok: false, error: 'PNG 为空' };
-    const data = Buffer.from(image.png, 'base64');
-    if (data.byteLength === 0) return { ok: false, error: 'PNG 解码为空' };
-    if (data.byteLength > MAX_PNG_BYTES) return { ok: false, error: `PNG 过大（${data.byteLength} 字节）` };
-    const attachments = this.ctx.get('attachments');
-    if (attachments === undefined) return { ok: false, error: '当前部署没有附件服务' };
+    if (revision !== state[target].revision)
+      return { ok: false, error: "画板 revision 已变化，丢弃旧渲染结果" };
+    if (typeof image.png !== "string" || image.png.length === 0)
+      return { ok: false, error: "PNG 为空" };
+    const data = Buffer.from(image.png, "base64");
+    if (data.byteLength === 0) return { ok: false, error: "PNG 解码为空" };
+    if (data.byteLength > MAX_PNG_BYTES)
+      return { ok: false, error: `PNG 过大（${data.byteLength} 字节）` };
+    const attachments = this.ctx.get("attachments");
+    if (attachments === undefined)
+      return { ok: false, error: "当前部署没有附件服务" };
     try {
       const ref = await attachments.saveImage({
         data: new Uint8Array(data),
-        mediaType: 'image/png',
+        mediaType: "image/png",
         name: `echo-sketch-${target}-${revision}.png`,
       });
       const entry = { revision, ref };
@@ -140,15 +159,18 @@ export class RenderBridge {
       this.cache.set(sessionId, cached);
       return { ok: true, value: entry };
     } catch (error) {
-      return { ok: false, error: `保存图片失败: ${String(error?.message ?? error)}` };
+      return {
+        ok: false,
+        error: `保存图片失败: ${String(error?.message ?? error)}`,
+      };
     }
   }
 
   /** 把附件引用转为模型可见的 image blocks。 */
   static imageBlocks(images) {
     return (Array.isArray(images) ? images : [])
-      .map(image => image?.ref)
-      .filter(ref => ref !== undefined)
-      .map(ref => ({ type: 'image', attachment: ref }));
+      .map((image) => image?.ref)
+      .filter((ref) => ref !== undefined)
+      .map((ref) => ({ type: "image", attachment: ref }));
   }
 }

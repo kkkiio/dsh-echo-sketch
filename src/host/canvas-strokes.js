@@ -5,15 +5,17 @@ export const CANVAS_HEIGHT = 800;
 export const MAX_STROKES = 500;
 export const MAX_POINTS = 20000;
 
-const DEFAULT_COLOR = '#1f2329';
+const DEFAULT_COLOR = "#1f2329";
 const COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
 const MAX_POINTS_PER_STROKE = 2000;
 const MAX_WIDTH = 40;
 
+/** @typedef {{ points: number[][], color?: string, width?: number, erase?: boolean }} Stroke */
+
 /**
  * 规范化用户提交的笔画：裁剪坐标、限制数量、过滤非法值。
  * @param {unknown} input
- * @returns {{strokes: Array<object>, dropped: number}}
+ * @returns {{strokes: Stroke[], dropped: number}}
  */
 export function normalizeStrokes(input) {
   const source = Array.isArray(input) ? input : [];
@@ -46,12 +48,13 @@ export function normalizeStrokes(input) {
 }
 
 function normalizeStroke(raw) {
-  if (raw === null || typeof raw !== 'object') return undefined;
+  if (raw === null || typeof raw !== "object") return undefined;
   const points = normalizePoints(raw.points);
   if (points.length === 0) return undefined;
-  const color = typeof raw.color === 'string' && COLOR_PATTERN.test(raw.color)
-    ? raw.color.toLowerCase()
-    : DEFAULT_COLOR;
+  const color =
+    typeof raw.color === "string" && COLOR_PATTERN.test(raw.color)
+      ? raw.color.toLowerCase()
+      : DEFAULT_COLOR;
   const width = clampNumber(raw.width, 1, MAX_WIDTH, 3);
   return {
     color,
@@ -70,10 +73,12 @@ function normalizePoints(input) {
     const y = round1(clampNumber(raw[1], 0, CANVAS_HEIGHT, NaN));
     if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
     const previous = points.at(-1);
-    if (previous !== undefined && previous[0] === x && previous[1] === y) continue;
+    if (previous !== undefined && previous[0] === x && previous[1] === y)
+      continue;
     points.push([x, y]);
   }
-  if (points.length === 1) points.push([points[0][0] + 0.1, points[0][1] + 0.1]);
+  if (points.length === 1)
+    points.push([points[0][0] + 0.1, points[0][1] + 0.1]);
   return points;
 }
 
@@ -89,7 +94,7 @@ function round1(value) {
 
 /**
  * 把规范化后的笔画画成 1200×800 的独立 SVG。
- * @param {Array<object>} strokes
+ * @param {Stroke[]} strokes
  * @returns {string}
  */
 export function strokesToSvg(strokes) {
@@ -97,18 +102,21 @@ export function strokesToSvg(strokes) {
   for (const stroke of Array.isArray(strokes) ? strokes : []) {
     if (!Array.isArray(stroke.points) || stroke.points.length === 0) continue;
     const d = stroke.points
-      .map(([x, y], index) => `${index === 0 ? 'M' : 'L'}${x} ${y}`)
-      .join(' ');
-    const color = stroke.erase === true ? '#ffffff' : String(stroke.color ?? DEFAULT_COLOR);
+      .map(([x, y], index) => `${index === 0 ? "M" : "L"}${x} ${y}`)
+      .join(" ");
+    const color =
+      stroke.erase === true ? "#ffffff" : String(stroke.color ?? DEFAULT_COLOR);
     const width = Number(stroke.width) || 3;
-    paths.push(`<path d="${d}" fill="none" stroke="${escapeAttribute(color)}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round"/>`);
+    paths.push(
+      `<path d="${d}" fill="none" stroke="${escapeAttribute(color)}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round"/>`,
+    );
   }
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${CANVAS_WIDTH}" height="${CANVAS_HEIGHT}" viewBox="0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}">`,
     `<rect width="${CANVAS_WIDTH}" height="${CANVAS_HEIGHT}" fill="#ffffff"/>`,
     ...paths,
-    '</svg>',
-  ].join('');
+    "</svg>",
+  ].join("");
 }
 
 /** 比较两组笔画是否完全一致。 */
@@ -117,5 +125,8 @@ export function sameStrokes(left, right) {
 }
 
 function escapeAttribute(value) {
-  return String(value).replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;');
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("<", "&lt;");
 }

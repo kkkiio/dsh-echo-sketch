@@ -6,10 +6,10 @@ export const CANVAS_HEIGHT = 800;
 /** 在 1200×800 画布上重绘全部笔画。 */
 export function drawStrokes(context, strokes) {
   context.save();
-  context.fillStyle = '#ffffff';
+  context.fillStyle = "#ffffff";
   context.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-  context.lineCap = 'round';
-  context.lineJoin = 'round';
+  context.lineCap = "round";
+  context.lineJoin = "round";
   for (const stroke of Array.isArray(strokes) ? strokes : []) {
     drawStroke(context, stroke);
   }
@@ -19,7 +19,8 @@ export function drawStrokes(context, strokes) {
 function drawStroke(context, stroke) {
   const points = Array.isArray(stroke?.points) ? stroke.points : [];
   if (points.length === 0) return;
-  const color = stroke.erase === true ? '#ffffff' : String(stroke.color ?? '#1f2329');
+  const color =
+    stroke.erase === true ? "#ffffff" : String(stroke.color ?? "#1f2329");
   const width = Number(stroke.width) || 3;
   context.strokeStyle = color;
   context.fillStyle = color;
@@ -43,18 +44,29 @@ export function pointFromEvent(event, canvas) {
   const rect = canvas.getBoundingClientRect();
   if (rect.width === 0 || rect.height === 0) return [0, 0];
   return [
-    clamp((event.clientX - rect.left) * CANVAS_WIDTH / rect.width, 0, CANVAS_WIDTH),
-    clamp((event.clientY - rect.top) * CANVAS_HEIGHT / rect.height, 0, CANVAS_HEIGHT),
+    clamp(
+      ((event.clientX - rect.left) * CANVAS_WIDTH) / rect.width,
+      0,
+      CANVAS_WIDTH,
+    ),
+    clamp(
+      ((event.clientY - rect.top) * CANVAS_HEIGHT) / rect.height,
+      0,
+      CANVAS_HEIGHT,
+    ),
   ];
 }
 
 /** 是否聚焦在可编辑控件中。 */
 export function isEditableElement(element) {
   if (element === null || element === undefined) return false;
-  const tag = String(element.tagName ?? '').toLowerCase();
-  if (tag === 'input' || tag === 'textarea' || tag === 'select') return true;
+  const tag = String(element.tagName ?? "").toLowerCase();
+  if (tag === "input" || tag === "textarea" || tag === "select") return true;
   if (element.isContentEditable === true) return true;
-  return typeof element.closest === 'function' && element.closest('[contenteditable="true"]') !== null;
+  return (
+    typeof element.closest === "function" &&
+    element.closest('[contenteditable="true"]') !== null
+  );
 }
 
 function clamp(value, min, max) {
