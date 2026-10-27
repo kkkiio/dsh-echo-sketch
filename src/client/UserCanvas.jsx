@@ -3,25 +3,27 @@
 import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Icon } from './icons.jsx';
 import { IconButton, Notice } from './ui.jsx';
+import { translate } from './i18n.js';
 import { downloadPng, renderUserPng } from './raster.js';
 import { drawStrokes, isEditableElement, pointFromEvent } from './strokes.js';
 
 const COLORS = [
-  { value: '#1f2329', name: '墨黑' },
-  { value: '#2f6fed', name: '海蓝' },
-  { value: '#1f9d55', name: '翠绿' },
-  { value: '#d97706', name: '琥珀' },
-  { value: '#dc2626', name: '朱红' },
-  { value: '#7c3aed', name: '紫罗兰' },
+  { value: '#1f2329', key: 'color.ink' },
+  { value: '#2f6fed', key: 'color.blue' },
+  { value: '#1f9d55', key: 'color.green' },
+  { value: '#d97706', key: 'color.amber' },
+  { value: '#dc2626', key: 'color.red' },
+  { value: '#7c3aed', key: 'color.violet' },
 ];
 const WIDTHS = [
-  { value: 3, label: '细', size: 4 },
-  { value: 6, label: '中', size: 7 },
-  { value: 12, label: '粗', size: 10 },
+  { value: 3, key: 'width.thin', size: 4 },
+  { value: 6, key: 'width.medium', size: 7 },
+  { value: 12, key: 'width.thick', size: 10 },
 ];
 
 /** 用户画板组件。 */
-export function UserCanvas({ store, sessionId }) {
+export function UserCanvas({ store, sessionId, t }) {
+  const tr = typeof t === 'function' ? t : translate;
   const state = useSyncExternalStore(store.subscribe, store.getSnapshot);
   const canvasRef = useRef(null);
   const rootRef = useRef(null);
@@ -136,7 +138,7 @@ export function UserCanvas({ store, sessionId }) {
   };
 
   const clear = () => {
-    if (hasInk && !window.confirm('清空我的草图？此操作不可撤销。')) return;
+    if (hasInk && !window.confirm(tr('user.confirm.clear'))) return;
     strokesRef.current = [];
     setHasInk(false);
     redraw();
@@ -162,39 +164,40 @@ export function UserCanvas({ store, sessionId }) {
   };
 
   const count = state.user.strokes.length;
-  const saveLabel = state.saving ? '保存中…' : state.dirty ? '未保存' : '已保存';
-  const meta = count === 0 ? '空白画布' : `${count} 笔 · ${saveLabel}`;
+  const saveLabel = tr(state.saving ? 'user.save.saving' : state.dirty ? 'user.save.dirty' : 'user.save.saved');
+  const strokeLabel = count === 1 ? tr('user.meta.strokeOne') : tr('user.meta.strokeOther', { count });
+  const meta = count === 0 ? tr('user.meta.empty') : `${strokeLabel} · ${saveLabel}`;
 
   return (
-    <section className="echo-sketch-panel echo-sketch-user" ref={rootRef} tabIndex={0} onKeyDown={onKeyDown} aria-label="我的草图">
+    <section className="echo-sketch-panel echo-sketch-user" ref={rootRef} tabIndex={0} onKeyDown={onKeyDown} aria-label={tr('user.title')}>
       <div className="echo-sketch-panel-head">
         <div className="echo-sketch-heading-block">
           <div className="echo-sketch-panel-title">
             <span className="echo-sketch-panel-icon" aria-hidden="true"><Icon name="pencil" size={15} /></span>
-            <span className="echo-sketch-panel-name">我的草图</span>
+            <span className="echo-sketch-panel-name">{tr('user.title')}</span>
           </div>
           <div className="echo-sketch-panel-meta">{meta}</div>
         </div>
         <div className="echo-sketch-actions">
           <IconButton
             icon="undo"
-            label="撤销"
-            tip={hasInk ? '撤销上一笔（Ctrl/⌘ Z）' : '还没有可撤销的笔画'}
+            label={tr('user.undo')}
+            tip={hasInk ? tr('user.undo.tip') : tr('user.undo.empty')}
             disabled={!hasInk}
             onClick={undo}
           />
           <IconButton
             icon="trash"
-            label="清空我的草图"
-            tip={hasInk ? '清空我的草图' : '画布已经是空的'}
+            label={tr('user.clear')}
+            tip={hasInk ? tr('user.clear.tip') : tr('user.clear.empty')}
             disabled={!hasInk}
             onClick={clear}
           />
           <span className="echo-sketch-divider" aria-hidden="true" />
           <IconButton
             icon="download"
-            label="下载 PNG"
-            tip={hasInk ? '下载为 PNG 图片' : '画点什么再下载'}
+            label={tr('user.download')}
+            tip={hasInk ? tr('user.download.tip') : tr('user.download.empty')}
             disabled={!hasInk}
             onClick={download}
           />
@@ -202,15 +205,15 @@ export function UserCanvas({ store, sessionId }) {
       </div>
 
       <div className="echo-sketch-drawbar">
-        <div className="echo-sketch-colors" role="group" aria-label="画笔颜色">
+        <div className="echo-sketch-colors" role="group" aria-label={tr('user.colors')}>
           {COLORS.map(item => (
             <button
               key={item.value}
               type="button"
               className={`echo-sketch-swatch echo-sketch-tool${!eraser && color === item.value ? ' is-active' : ''}`}
               style={{ backgroundColor: item.value }}
-              aria-label={`颜色：${item.name}`}
-              data-tip={`颜色：${item.name}`}
+              aria-label={tr('color.tip', { name: tr(item.key) })}
+              data-tip={tr('color.tip', { name: tr(item.key) })}
               aria-pressed={!eraser && color === item.value}
               onClick={() => { setColor(item.value); setEraser(false); }}
             >
@@ -219,14 +222,14 @@ export function UserCanvas({ store, sessionId }) {
           ))}
         </div>
         <span className="echo-sketch-divider" aria-hidden="true" />
-        <div className="echo-sketch-widths" role="group" aria-label="画笔粗细">
+        <div className="echo-sketch-widths" role="group" aria-label={tr('user.widths')}>
           {WIDTHS.map(item => (
             <button
               key={item.value}
               type="button"
               className={`echo-sketch-width echo-sketch-tool${!eraser && width === item.value ? ' is-active' : ''}`}
-              aria-label={`画笔${item.label}`}
-              data-tip={`${item.label}笔`}
+              aria-label={tr('width.aria', { width: tr(item.key) })}
+              data-tip={tr('width.tip', { width: tr(item.key) })}
               aria-pressed={!eraser && width === item.value}
               onClick={() => { setWidth(item.value); setEraser(false); }}
             >
@@ -237,8 +240,8 @@ export function UserCanvas({ store, sessionId }) {
         <span className="echo-sketch-divider" aria-hidden="true" />
         <IconButton
           icon="eraser"
-          label="橡皮擦"
-          tip={eraser ? '退出橡皮擦' : '橡皮擦'}
+          label={tr('user.eraser')}
+          tip={eraser ? tr('user.eraser.exit') : tr('user.eraser')}
           active={eraser}
           aria-pressed={eraser}
           onClick={() => setEraser(value => !value)}
@@ -255,22 +258,22 @@ export function UserCanvas({ store, sessionId }) {
           onPointerMove={onPointerMove}
           onPointerUp={finish}
           onPointerCancel={finish}
-          aria-label="用户草图板"
+          aria-label={tr('user.canvas')}
         />
         {hasInk ? null : (
           <div className="echo-sketch-canvas-hint" aria-hidden="true">
             <span className="echo-sketch-canvas-hint-icon"><Icon name="pencil" size={20} /></span>
-            <strong>在这里画下你的想法</strong>
-            <span>拖动即可绘制，松手自动保存</span>
+            <strong>{tr('user.hint.title')}</strong>
+            <span>{tr('user.hint.body')}</span>
           </div>
         )}
       </div>
 
-      {actionError === '' ? null : <Notice tone="error" icon="alert" onClose={() => setActionError('')}>{actionError}</Notice>}
+      {actionError === '' ? null : <Notice tone="error" icon="alert" t={tr} onClose={() => setActionError('')}>{actionError}</Notice>}
 
       <div className="echo-sketch-canvas-foot">
-        <span>自动保存</span>
-        <span className="echo-sketch-shortcut">Ctrl/⌘ + Z 撤销</span>
+        <span>{tr('user.footer.save')}</span>
+        <span className="echo-sketch-shortcut">{tr('user.footer.undo')}</span>
       </div>
     </section>
   );

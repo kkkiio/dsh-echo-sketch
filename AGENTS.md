@@ -27,20 +27,10 @@
 
 ## Domain Language
 
-- **Main Agent** — 处理用户正常对话主循环的宿主会话 Agent，其上下文中不包含画图提示词。
-- **Visual Agent** — 每个主会话一个的 durable visual subagent（sidecar）；主 Agent 轮次结束后，宿主把增量 transcript delta（不含 reasoning）push 给它，由它自己的 agent loop 调用 `sketchpad_draw`。
+- **Main Agent** — 处理用户正常对话主循环的宿主会话 Agent。
+- **Visual Agent** — 每个主会话绑定的 durable visual subagent（sidecar），负责在主对话轮次结束后生成或更新视觉图示。
 - **User Canvas** — 用户专属的手绘涂鸦画板，供用户绘制草图并作为多模态图像输入传给 Agent。
-- **Agent Canvas** — 展示 Visual Agent 在每轮对话结束后所生成视觉图示的独立画板。
-
-## Sidecar Constraints
-
-- 用 `ctx.subagents.startActivation({ provider:'spawn', childId, delivery:'caller', ... })` 创建；child 是合法 subagent，会出现在父级 subagent 目录/lineage。
-- 后续 push 用 `ctx.subagents.sendMessage(mainAgent, childId, content, { signal })`；不要用 `startActivation` 复用同一个 childId（会 `DUPLICATE_CHILD`）。
-- `agent/created` 在 create 与 cold resume 都会触发；在这里挂 visual prompt 和 `tools.restrict({ allow:['sketchpad_draw'] })`。不要轻易用 `complete:true`。
-- sidecar 的 `origin` 是 `subagent`；主 `turn/end` 必须过滤，避免递归。cold resume 后 `delivery: 'caller'` 不再生效，`subagent-settled` notice 会唤醒父会话：主 Agent 的 `agent/pre-step` 首步若只领取到本 sidecar 的 notice，就清空 messages，不跑模型；`delta.isVisualizableTurn` 在 `turn/end` 兜底跳过空 turn / 纯 notice turn。
-- push 的 delta 不含 reasoning；首次创建从当前 turn 起点开始，避免回放全部历史。
-- raw SVG 只保留最新一份在 CanvasStore；sidecar transcript 中的历史 SVG 由 DSH compaction 管理。
-- `sketchpad_read` 的 PNG 只走按需渲染桥；不要自动上传每一笔/每一轮图片。
+- **Agent Canvas** — 展示 Visual Agent 所生成 SVG 视觉图示的独立画板。
 
 ## Policies & Mandatory Rules
 
@@ -53,6 +43,10 @@ API Doc Comments 写:
 - 参数含义
 - 返回值含义
 - 边界情况
+
+### Client Copy
+
+客户端 UI 文案统一放在 `src/client/locales.js` 的 `echoSketch` namespace，通过 DSH `ctx.locale.register` / `ctx.locale.bind` 使用；必须同时提供 `zh` 与 `en`。组件内不写死中文。
 
 ### Compatibility Policy
 

@@ -1,3 +1,23 @@
 - insert:
     - id: echo-sketch
       name: dsh-echo-sketch
+
+    - id: preset-echo-sketch-visual
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: echo-sketch-visual
+        name: Sketchpad Visual (sidecar)
+        description: Visual-only preset for the dsh-echo-sketch sidecar. Not intended for normal chat.
+        order: 50
+        plugins:
+          - id: compaction
+            name: cordis:group
+            group: true
+            isolate:
+              compaction: true
+            config:
+              - id: compaction-basic
+                name: '@deepseek-ai/dsh-compaction-basic'
+                config:
+                  thresholdRatio: 0.24
+                  retainTokens: 32768

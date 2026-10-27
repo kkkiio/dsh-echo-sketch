@@ -1,6 +1,7 @@
 /** 每会话画板客户端状态。 */
 
 import { fetchState, postCanvas, postRedraw, postRenderResult, postSettings } from './api.js';
+import { translate } from './i18n.js';
 import { renderAgentPng, renderUserPng } from './raster.js';
 
 const stores = new Map();
@@ -120,21 +121,21 @@ function createStore(sessionId, ctx) {
     set({ sending: true, error: '' });
     try {
       await flush();
-      const content = [{ type: 'text', text: String(note ?? '').trim() || '请结合我的画板内容回答。' }];
+      const content = [{ type: 'text', text: String(note ?? '').trim() || translate('prompt.fallback') }];
       if (state.user.strokes.length > 0) {
         const rendered = renderUserPng(state.user.strokes);
-        content.push({ type: 'image', mediaType: 'image/png', data: rendered.png, name: '用户草图.png' });
+        content.push({ type: 'image', mediaType: 'image/png', data: rendered.png, name: translate('file.user') });
       }
       if (state.agent.svg.length > 0) {
         try {
           const rendered = await renderAgentPng(state.agent.svg);
-          content.push({ type: 'image', mediaType: 'image/png', data: rendered.png, name: 'Agent 图示.png' });
+          content.push({ type: 'image', mediaType: 'image/png', data: rendered.png, name: translate('file.agent') });
         } catch {
         }
       }
       await ctx.sessions.using(sessionId, { source: 'echo-sketch' }, async reference => {
         const result = await reference.binding.session.prompt(content, 'queue');
-        if (!result.ok) throw new Error(result.error?.message ?? '发送失败');
+        if (!result.ok) throw new Error(result.error?.message ?? translate('error.send'));
       });
     } catch (error) {
       set({ error: messageOf(error) });

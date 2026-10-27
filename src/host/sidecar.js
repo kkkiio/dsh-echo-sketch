@@ -3,6 +3,7 @@
 import { randomUUID } from 'node:crypto';
 
 export const SIDECAR_PREFIX = 'echo-sketch-sidecar-';
+export const VISUAL_PRESET_ID = 'echo-sketch-visual';
 
 const VISUAL_PROMPT = [
   'You are the visual sidecar agent for the main conversation.',
@@ -88,6 +89,7 @@ export class SidecarManager {
         request: {
           parent: mainAgent,
           prompt: content,
+          agentPreset: VISUAL_PRESET_ID,
           agentOptions: this.agentOptions(route),
         },
       });

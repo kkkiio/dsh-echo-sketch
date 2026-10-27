@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SidecarManager, SIDECAR_PREFIX } from '../src/host/sidecar.js';
+import { SidecarManager, SIDECAR_PREFIX, VISUAL_PRESET_ID } from '../src/host/sidecar.js';
 
 function fakeAgent(id) {
   const calls = [];
@@ -76,6 +76,7 @@ test('first push creates a spawn sidecar with visual setup', async () => {
   assert.equal(created[0].provider, 'spawn');
   assert.equal(created[0].label, '画板 Sidecar');
   assert.equal(created[0].delivery, 'caller');
+  assert.equal(created[0].request.agentPreset, VISUAL_PRESET_ID);
   assert.deepEqual(created[0].request.agentOptions, { provider: 'p', model: 'm', reasoningEffort: 'low', maxTokens: 8192 });
   assert.equal(storeState.sidecarChildId, childId);
   const child = agents.get(childId);

@@ -5,10 +5,12 @@ import { AgentCanvas } from './AgentCanvas.jsx';
 import { UserCanvas } from './UserCanvas.jsx';
 import { Icon } from './icons.jsx';
 import { getSketchpadStore } from './session-store.js';
+import { translate } from './i18n.js';
 import { Notice } from './ui.jsx';
 
 /** 双画板组件。 */
-export function Sketchpad({ ctx, sessionId, useTabInfo }) {
+export function Sketchpad({ ctx, sessionId, useTabInfo, t }) {
+  const tr = typeof t === 'function' ? t : translate;
   const store = getSketchpadStore(sessionId, ctx);
   const state = useSyncExternalStore(store.subscribe, store.getSnapshot);
   const info = typeof useTabInfo === 'function' ? useTabInfo() : undefined;
@@ -36,6 +38,7 @@ export function Sketchpad({ ctx, sessionId, useTabInfo }) {
   };
 
   const status = visualStatus(state.visual);
+  const statusLabel = tr(`status.${status.key}`);
 
   return (
     <div className="echo-sketch-root">
@@ -44,41 +47,41 @@ export function Sketchpad({ ctx, sessionId, useTabInfo }) {
           <span className="echo-sketch-logo" aria-hidden="true"><Icon name="brand" size={19} /></span>
           <div className="echo-sketch-brand-text">
             <div className="echo-sketch-brand-title">
-              双画板
+              {tr('tab.title')}
               {status.busy || status.error ? (
                 <span
                   className={`echo-sketch-dot${status.busy ? ' is-busy' : ' is-error'}`}
                   role="status"
-                  aria-label={`Agent 图示：${status.label}`}
-                  data-tip={`Agent 图示：${status.label}`}
+                  aria-label={tr('status.label', { status: statusLabel })}
+                  data-tip={tr('status.label', { status: statusLabel })}
                   data-tip-align="start"
                 />
               ) : null}
             </div>
-            <div className="echo-sketch-brand-sub">画给 Agent 看，也看 Agent 画</div>
+            <div className="echo-sketch-brand-sub">{tr('brand.subtitle')}</div>
           </div>
         </div>
-        <div className="echo-sketch-segment" role="tablist" aria-label="切换画板">
-          {viewTab(store, state, 'user', '我的草图', 'pencil')}
-          {viewTab(store, state, 'agent', 'Agent 图示', 'sparkles')}
+        <div className="echo-sketch-segment" role="tablist" aria-label={tr('tab.list')}>
+          {viewTab(store, state, 'user', 'tab.user', 'pencil', tr)}
+          {viewTab(store, state, 'agent', 'tab.agent', 'sparkles', tr)}
         </div>
       </header>
 
       <main className="echo-sketch-main">
         {state.status === 'loading'
-          ? <Loading />
+          ? <Loading t={tr} />
           : state.viewMode === 'agent'
-            ? <AgentCanvas store={store} sessionId={sessionId} />
-            : <UserCanvas store={store} sessionId={sessionId} />}
+            ? <AgentCanvas store={store} sessionId={sessionId} t={tr} />
+            : <UserCanvas store={store} sessionId={sessionId} t={tr} />}
       </main>
 
       <div className="echo-sketch-composer">
         <input
           className="echo-sketch-input"
           value={note}
-          placeholder="补充一句，或直接发送画板…"
+          placeholder={tr('prompt.placeholder')}
           maxLength={500}
-          aria-label="补充说明"
+          aria-label={tr('prompt.aria')}
           onChange={event => setNote(event.target.value)}
           onKeyDown={event => {
             if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
@@ -91,26 +94,26 @@ export function Sketchpad({ ctx, sessionId, useTabInfo }) {
           type="button"
           className="echo-sketch-send echo-sketch-tool"
           disabled={state.sending}
-          aria-label="发送给 Agent"
-          data-tip="把当前画板发给 Agent（Enter）"
+          aria-label={tr('send.aria')}
+          data-tip={tr('send.tip')}
           data-tip-align="end"
           onClick={() => { void send(); }}
         >
           {state.sending
             ? <span className="echo-sketch-spinner is-small" aria-hidden="true" />
             : <Icon name="send" size={15} />}
-          <span>{state.sending ? '发送中…' : '发给 Agent'}</span>
+          <span>{state.sending ? tr('send.sending') : tr('send')}</span>
         </button>
       </div>
 
       {state.error === '' ? null : (
-        <Notice tone="error" icon="alert">{state.error}</Notice>
+        <Notice tone="error" icon="alert" t={tr}>{state.error}</Notice>
       )}
     </div>
   );
 }
 
-function viewTab(store, state, mode, label, icon) {
+function viewTab(store, state, mode, labelKey, icon, t) {
   const active = state.viewMode === mode;
   const hasUpdate = mode === 'agent'
     && !active
@@ -125,24 +128,24 @@ function viewTab(store, state, mode, label, icon) {
       onClick={() => store.setViewMode(mode)}
     >
       <Icon name={icon} size={15} />
-      <span>{label}</span>
-      {hasUpdate ? <span className="echo-sketch-new" aria-label="有新图示" /> : null}
+      <span>{t(labelKey)}</span>
+      {hasUpdate ? <span className="echo-sketch-new" aria-label={t('tab.new')} /> : null}
     </button>
   );
 }
 
 function visualStatus(visual) {
-  if (visual.status === 'drawing') return { label: '正在绘制', busy: true, error: false };
-  if (visual.status === 'error') return { label: '绘制失败', busy: false, error: true };
-  if (visual.status === 'skipped') return { label: '本轮未绘制', busy: false, error: false };
-  return { label: '就绪', busy: false, error: false };
+  if (visual.status === 'drawing') return { key: 'drawing', busy: true, error: false };
+  if (visual.status === 'error') return { key: 'error', busy: false, error: true };
+  if (visual.status === 'skipped') return { key: 'skipped', busy: false, error: false };
+  return { key: 'ready', busy: false, error: false };
 }
 
-function Loading() {
+function Loading({ t }) {
   return (
     <div className="echo-sketch-loading" aria-live="polite">
       <span className="echo-sketch-spinner" aria-hidden="true" />
-      <span>正在打开画板…</span>
+      <span>{t('loading')}</span>
     </div>
   );
 }

@@ -3,10 +3,12 @@
 import React, { useState, useSyncExternalStore } from 'react';
 import { Icon } from './icons.jsx';
 import { AutoToggle, IconButton, Notice } from './ui.jsx';
+import { translate } from './i18n.js';
 import { downloadPng, downloadSvg, renderAgentPng, svgDataUrl } from './raster.js';
 
 /** Agent 画板组件。 */
-export function AgentCanvas({ store, sessionId }) {
+export function AgentCanvas({ store, sessionId, t }) {
+  const tr = typeof t === 'function' ? t : translate;
   const state = useSyncExternalStore(store.subscribe, store.getSnapshot);
   const { agent, settings, visual, imageSupport } = state;
   const drawing = visual.status === 'drawing';
@@ -25,56 +27,57 @@ export function AgentCanvas({ store, sessionId }) {
   };
 
   const clear = () => {
-    if (hasSvg && !window.confirm('清空 Agent 图示？此操作不可撤销。')) return;
+    if (hasSvg && !window.confirm(tr('agent.confirm.clear'))) return;
     void store.clearAgent();
   };
 
   const meta = agent.revision > 0
-    ? `${agent.source === 'main' ? '主 Agent 更新' : '自动绘制'} · 第 ${agent.sourceTurn || '?'} 轮`
-    : '等待第一张图';
+    ? tr(agent.source === 'main' ? 'agent.meta.main' : 'agent.meta.auto', { turn: agent.sourceTurn || '?' })
+    : tr('agent.meta.waiting');
 
   return (
     <section className="echo-sketch-panel echo-sketch-agent" aria-busy={drawing}>
       <div className="echo-sketch-panel-head">
         <div className="echo-sketch-heading-block">
-          <div className="echo-sketch-panel-title" title={agent.title || 'Agent 图示'}>
+          <div className="echo-sketch-panel-title" title={agent.title || tr('agent.title')}>
             <span className="echo-sketch-panel-icon is-agent" aria-hidden="true"><Icon name="sparkles" size={15} /></span>
-            <span className="echo-sketch-panel-name">{agent.title || 'Agent 图示'}</span>
+            <span className="echo-sketch-panel-name">{agent.title || tr('agent.title')}</span>
           </div>
           <div className="echo-sketch-panel-meta">{meta}</div>
         </div>
         <div className="echo-sketch-actions">
           <AutoToggle
             enabled={settings.autoDraw}
+            t={tr}
             onChange={value => { void store.setAutoDraw(value); }}
           />
           <span className="echo-sketch-divider" aria-hidden="true" />
           <IconButton
             icon="refresh"
-            label={drawing ? '正在绘制' : '重新绘制'}
-            tip={drawing ? '正在绘制…' : '让 Agent 重新画一张'}
+            label={drawing ? tr('agent.redraw.busy') : tr('agent.redraw')}
+            tip={drawing ? tr('agent.redraw.busy') : tr('agent.redraw.tip')}
             busy={drawing}
             disabled={drawing}
             onClick={() => { void store.redraw(); }}
           />
           <IconButton
             icon="trash"
-            label="清空 Agent 图示"
-            tip={hasSvg ? '清空 Agent 图示' : '还没有可清空的图示'}
+            label={tr('agent.clear')}
+            tip={hasSvg ? tr('agent.clear.tip') : tr('agent.clear.empty')}
             disabled={!hasSvg || drawing}
             onClick={clear}
           />
           <IconButton
             icon="code"
-            label="下载 SVG"
-            tip={hasSvg ? '下载 SVG（矢量）' : '还没有可下载的图示'}
+            label={tr('agent.download.svg')}
+            tip={hasSvg ? tr('agent.download.svg.tip') : tr('agent.download.empty')}
             disabled={!hasSvg}
             onClick={() => downloadSvg(`echo-sketch-agent-${sessionId}.svg`, agent.svg)}
           />
           <IconButton
             icon="image"
-            label="下载 PNG"
-            tip={hasSvg ? '下载 PNG（图片）' : '还没有可下载的图示'}
+            label={tr('agent.download.png')}
+            tip={hasSvg ? tr('agent.download.png.tip') : tr('agent.download.empty')}
             disabled={!hasSvg}
             onClick={() => { void downloadAgentPng(); }}
           />
@@ -82,22 +85,22 @@ export function AgentCanvas({ store, sessionId }) {
       </div>
 
       {imageSupport === false ? (
-        <Notice tone="warn" icon="alert">当前模型不支持图片输入，画板图片无法被 Agent 看见；图示仍会保存在本机。</Notice>
+        <Notice tone="warn" icon="alert" t={tr}>{tr('agent.imageSupport')}</Notice>
       ) : null}
 
       {drawing ? (
         <div className="echo-sketch-progress" role="status">
           <span className="echo-sketch-spinner is-small" aria-hidden="true" />
-          <span>正在把这一轮回答画成图示…</span>
+          <span>{tr('agent.progress')}</span>
         </div>
       ) : null}
 
       {visual.status === 'skipped' ? (
-        <Notice tone="info" icon="check">本轮没有新的图示更新，保留上一张。</Notice>
+        <Notice tone="info" icon="check" t={tr}>{tr('agent.skipped')}</Notice>
       ) : null}
 
-      {error === '' ? null : <Notice tone="error" icon="alert">{error}</Notice>}
-      {actionError === '' ? null : <Notice tone="error" icon="alert" onClose={() => setActionError('')}>{actionError}</Notice>}
+      {error === '' ? null : <Notice tone="error" icon="alert" t={tr}>{error}</Notice>}
+      {actionError === '' ? null : <Notice tone="error" icon="alert" t={tr} onClose={() => setActionError('')}>{actionError}</Notice>}
 
       {hasSvg
         ? (
@@ -105,33 +108,33 @@ export function AgentCanvas({ store, sessionId }) {
             <img
               className="echo-sketch-agent-image"
               src={svgDataUrl(agent.svg)}
-              alt={agent.title || 'Agent 图示'}
+              alt={agent.title || tr('agent.title')}
               draggable={false}
             />
           </div>
         )
-        : <EmptyAgent drawing={drawing} onDraw={() => { void store.redraw(); }} />}
+        : <EmptyAgent drawing={drawing} onDraw={() => { void store.redraw(); }} t={tr} />}
     </section>
   );
 }
 
-function EmptyAgent({ drawing, onDraw }) {
+function EmptyAgent({ drawing, onDraw, t }) {
   return (
     <div className="echo-sketch-empty" aria-live="polite">
       <div className={`echo-sketch-empty-art${drawing ? ' is-busy' : ''}`} aria-hidden="true">
         {drawing ? <span className="echo-sketch-spinner" /> : <Icon name="sparkles" size={26} />}
       </div>
-      <strong>{drawing ? '正在画第一张图' : '第一张图还在路上'}</strong>
-      <span>{drawing ? '正在从这一轮回答里提炼要点…' : '结束一轮对话后，Agent 会把要点画在这里。'}</span>
+      <strong>{t(drawing ? 'agent.empty.drawingTitle' : 'agent.empty.title')}</strong>
+      <span>{t(drawing ? 'agent.empty.drawingBody' : 'agent.empty.body')}</span>
       {drawing ? null : (
         <button
           type="button"
           className="echo-sketch-textaction echo-sketch-tool"
-          data-tip="基于最近对话立即画一张"
+          data-tip={t('agent.empty.tip')}
           onClick={onDraw}
         >
           <Icon name="refresh" size={14} />
-          <span>现在画一张</span>
+          <span>{t('agent.empty.draw')}</span>
         </button>
       )}
     </div>

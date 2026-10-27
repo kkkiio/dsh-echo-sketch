@@ -1,5 +1,6 @@
 /** 浏览器侧 PNG 导出。 */
 
+import { translate } from './i18n.js';
 import { CANVAS_HEIGHT, CANVAS_WIDTH, drawStrokes } from './strokes.js';
 
 /** 用户画板 → PNG。 */
@@ -8,14 +9,14 @@ export function renderUserPng(strokes) {
   canvas.width = CANVAS_WIDTH;
   canvas.height = CANVAS_HEIGHT;
   const context = canvas.getContext('2d');
-  if (context === null) throw new Error('无法创建画布上下文');
+  if (context === null) throw new Error(translate('error.canvasContext'));
   drawStrokes(context, strokes);
   return { png: base64Of(canvas.toDataURL('image/png')), width: CANVAS_WIDTH, height: CANVAS_HEIGHT };
 }
 
 /** Agent SVG → PNG；失败时抛出可读错误。 */
 export async function renderAgentPng(svg, maxWidth = CANVAS_WIDTH) {
-  if (typeof svg !== 'string' || svg.trim().length === 0) throw new Error('Agent 画板为空');
+  if (typeof svg !== 'string' || svg.trim().length === 0) throw new Error(translate('error.agentEmpty'));
   const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
   try {
     const image = await loadImage(url);
@@ -27,7 +28,7 @@ export async function renderAgentPng(svg, maxWidth = CANVAS_WIDTH) {
     canvas.width = width;
     canvas.height = Math.min(height, 2400);
     const context = canvas.getContext('2d');
-    if (context === null) throw new Error('无法创建画布上下文');
+    if (context === null) throw new Error(translate('error.canvasContext'));
     context.fillStyle = '#ffffff';
     context.fillRect(0, 0, canvas.width, canvas.height);
     context.drawImage(image, 0, 0, canvas.width, canvas.height);
@@ -65,7 +66,7 @@ export function downloadPng(filename, png) {
 
 function base64Of(dataUrl) {
   const comma = dataUrl.indexOf(',');
-  if (comma < 0) throw new Error('PNG 编码失败');
+  if (comma < 0) throw new Error(translate('error.pngEncode'));
   return dataUrl.slice(comma + 1);
 }
 
@@ -73,7 +74,7 @@ function loadImage(url) {
   return new Promise((resolve, reject) => {
     const image = new Image();
     image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error('SVG 无法渲染为图片'));
+    image.onerror = () => reject(new Error(translate('error.svgRender')));
     image.src = url;
   });
 }

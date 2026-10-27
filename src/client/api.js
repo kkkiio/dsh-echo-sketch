@@ -1,4 +1,4 @@
-/** 客户端 HTTP 调用。 */
+import { translate } from './i18n.js';
 
 const BASE = '/api/plugins/dsh-echo-sketch';
 
@@ -52,10 +52,10 @@ async function request(url, { method = 'GET', body, signal } = {}) {
 }
 
 function statusMessage(status) {
-  if (status === 404) return '画板服务未就绪，请重启 dsh web 后重试。';
-  if (status === 401) return '登录状态已失效，请刷新页面后重试。';
-  if (status === 403) return '当前页面没有访问画板的权限。';
-  if (status === 413) return '画板内容太大，暂时无法保存。';
-  if (status >= 500) return '画板服务暂时出错，请稍后重试。';
-  return `请求失败（HTTP ${status}）`;
+  if (status === 404) return translate('error.serviceUnavailable');
+  if (status === 401) return translate('error.unauthorized');
+  if (status === 403) return translate('error.forbidden');
+  if (status === 413) return translate('error.tooLarge');
+  if (status >= 500) return translate('error.server');
+  return translate('error.http', { status });
 }
