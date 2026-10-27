@@ -12,9 +12,7 @@ Ideas deserve a visual language.
 
 ## Requirements
 
-- DeepSeek Harness `0.2.1-rc.3` (Web or Desktop profile).
-- Node.js `>=22.19`.
-- For the main agent to actually see canvas images, use an image-capable model.
+- A multimodal model that supports image input.
 
 ## Installation
 

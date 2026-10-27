@@ -1,5 +1,6 @@
-import test from "node:test";
+import { expect, test } from "vitest";
 import assert from "node:assert/strict";
+import { stringify } from "yaml";
 import {
   endSeqOf,
   firstTurnStartSeq,
@@ -62,32 +63,28 @@ const events = [
   },
 ];
 
-test("renderDelta includes text/tool I/O and excludes reasoning", () => {
+test("renderDelta includes text/tool I/O and excludes reasoning", async () => {
   const delta = renderDelta(sessionWith(events), 0);
-  assert.equal(delta.hasAssistantText, true);
-  assert.equal(delta.nextSeq, 5);
-  assert.match(delta.text, /画个流程/);
-  assert.match(delta.text, /先用 A/);
-  assert.match(delta.text, /sketchpad_draw/);
-  assert.match(delta.text, /tool-result sketchpad_draw/);
-  assert.doesNotMatch(delta.text, /secret thought/);
-  assert.deepEqual(delta.images, [
-    { attachmentId: "img-0" },
-    { attachmentId: "img-1" },
-  ]);
+  await expect(stringify(delta, { lineWidth: 0 })).toMatchFileSnapshot(
+    "snapshots/renderDelta.yaml",
+  );
 });
 
-test("renderDelta can include reasoning when explicitly requested", () => {
-  const delta = renderDelta(sessionWith(events), 0, { includeReasoning: true });
-  assert.match(delta.text, /secret thought/);
+test("renderDelta can include reasoning when explicitly requested", async () => {
+  const delta = renderDelta(sessionWith(events), 0, {
+    includeReasoning: true,
+  });
+  await expect(stringify(delta, { lineWidth: 0 })).toMatchFileSnapshot(
+    "snapshots/renderDelta-reasoning.yaml",
+  );
 });
 
-test("renderDelta starts at the requested cursor and marks compaction", () => {
+test("renderDelta starts at the requested cursor and marks compaction", async () => {
   const compacted = [...events, { type: "compaction/end", seq: 5, data: {} }];
   const delta = renderDelta(sessionWith(compacted), 2);
-  assert.equal(delta.compacted, true);
-  assert.doesNotMatch(delta.text, /画个流程/);
-  assert.match(delta.text, /先用 A/);
+  await expect(stringify(delta, { lineWidth: 0 })).toMatchFileSnapshot(
+    "snapshots/renderDelta-compaction.yaml",
+  );
 });
 
 test("firstTurnStartSeq/lastAssistantText/endSeqOf", () => {

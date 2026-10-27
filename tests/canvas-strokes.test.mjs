@@ -1,8 +1,7 @@
-import test from "node:test";
+import { expect, test } from "vitest";
 import assert from "node:assert/strict";
 import {
   CANVAS_HEIGHT,
-  CANVAS_WIDTH,
   normalizeStrokes,
   sameStrokes,
   strokesToSvg,
@@ -33,7 +32,7 @@ test("normalizeStrokes clamps values and drops invalid strokes", () => {
   assert.equal(strokes[1].points.length, 2);
 });
 
-test("strokesToSvg renders a white background and erase strokes as white", () => {
+test("strokesToSvg renders a white background and erase strokes as white", async () => {
   const svg = strokesToSvg([
     {
       color: "#123456",
@@ -52,13 +51,7 @@ test("strokesToSvg renders a white background and erase strokes as white", () =>
       ],
     },
   ]);
-  assert.match(
-    svg,
-    new RegExp(`viewBox="0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}"`),
-  );
-  assert.match(svg, /fill="#ffffff"/);
-  assert.match(svg, /stroke="#123456"/);
-  assert.match(svg, /stroke="#ffffff"/);
+  await expect(svg).toMatchFileSnapshot("snapshots/strokesToSvg.svg");
 });
 
 test("sameStrokes compares serialized content", () => {

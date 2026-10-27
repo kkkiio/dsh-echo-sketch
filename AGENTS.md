@@ -79,5 +79,3 @@ pnpm run build
 ```bash
 pnpm run check && pnpm test
 ```
-
-也可单独跑 `pnpm run typecheck` / `pnpm run lint`。

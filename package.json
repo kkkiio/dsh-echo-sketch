@@ -19,7 +19,8 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "watch": "node scripts/build.mjs --watch",
-    "test": "node --test tests/*.test.mjs",
+    "test": "vitest run",
+    "test:update": "vitest run -u",
     "typecheck": "tsc",
     "lint": "eslint .",
     "fmt": "prettier --write \"src/**/*.{js,jsx,css}\" \"tests/**/*.mjs\" \"scripts/**/*.mjs\" \"*.{json,md,yml}\"",
@@ -65,7 +66,9 @@
     "prettier": "^3.9.10",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5",
+    "yaml": "^2.9.1"
   },
   "license": "Apache-2.0",
   "keywords": [
@@ -74,5 +77,8 @@
     "dsh-plugin",
     "sketch",
     "canvas"
-  ]
+  ],
+  "dependencies": {
+    "perfect-freehand": "^1.2.3"
+  }
 }

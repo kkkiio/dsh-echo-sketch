@@ -1,0 +1,15 @@
+text: |-
+  assistant:
+  先用 A，再到 B。
+  tool-call sketchpad_draw: {"title":"流程"}
+  [image]
+
+  tool-result sketchpad_draw:
+  ok
+
+  ［turn 1 end］
+nextSeq: 6
+hasAssistantText: true
+compacted: true
+images:
+  - attachmentId: img-1

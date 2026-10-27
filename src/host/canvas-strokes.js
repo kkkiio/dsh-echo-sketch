@@ -1,5 +1,7 @@
 /** 用户画板笔画校验与 SVG 生成（宿主侧，纯函数）。 */
 
+import { strokePathD } from "../shared/freehand.js";
+
 export const CANVAS_WIDTH = 1200;
 export const CANVAS_HEIGHT = 800;
 export const MAX_STROKES = 500;
@@ -101,15 +103,10 @@ export function strokesToSvg(strokes) {
   const paths = [];
   for (const stroke of Array.isArray(strokes) ? strokes : []) {
     if (!Array.isArray(stroke.points) || stroke.points.length === 0) continue;
-    const d = stroke.points
-      .map(([x, y], index) => `${index === 0 ? "M" : "L"}${x} ${y}`)
-      .join(" ");
     const color =
       stroke.erase === true ? "#ffffff" : String(stroke.color ?? DEFAULT_COLOR);
-    const width = Number(stroke.width) || 3;
-    paths.push(
-      `<path d="${d}" fill="none" stroke="${escapeAttribute(color)}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round"/>`,
-    );
+    const d = strokePathD(stroke.points, Number(stroke.width) || 3);
+    paths.push(`<path d="${d}" fill="${escapeAttribute(color)}"/>`);
   }
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${CANVAS_WIDTH}" height="${CANVAS_HEIGHT}" viewBox="0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}">`,

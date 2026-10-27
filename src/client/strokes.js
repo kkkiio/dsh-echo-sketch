@@ -1,5 +1,7 @@
 /** 画布绘制与指针坐标工具。 */
 
+import { strokePathD } from "../shared/freehand.js";
+
 export const CANVAS_WIDTH = 1200;
 export const CANVAS_HEIGHT = 800;
 
@@ -8,8 +10,6 @@ export function drawStrokes(context, strokes) {
   context.save();
   context.fillStyle = "#ffffff";
   context.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-  context.lineCap = "round";
-  context.lineJoin = "round";
   for (const stroke of Array.isArray(strokes) ? strokes : []) {
     drawStroke(context, stroke);
   }
@@ -21,22 +21,9 @@ function drawStroke(context, stroke) {
   if (points.length === 0) return;
   const color =
     stroke.erase === true ? "#ffffff" : String(stroke.color ?? "#1f2329");
-  const width = Number(stroke.width) || 3;
-  context.strokeStyle = color;
+  const d = strokePathD(points, Number(stroke.width) || 3);
   context.fillStyle = color;
-  context.lineWidth = width;
-  if (points.length === 1) {
-    context.beginPath();
-    context.arc(points[0][0], points[0][1], width / 2, 0, Math.PI * 2);
-    context.fill();
-    return;
-  }
-  context.beginPath();
-  context.moveTo(points[0][0], points[0][1]);
-  for (let index = 1; index < points.length; index += 1) {
-    context.lineTo(points[index][0], points[index][1]);
-  }
-  context.stroke();
+  context.fill(new Path2D(d));
 }
 
 /** 把指针位置映射到 1200×800 逻辑坐标。 */
