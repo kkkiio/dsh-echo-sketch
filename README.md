@@ -10,17 +10,22 @@ Ideas deserve a visual language.
 - **User Sketchpad**: Provides a dedicated drawing canvas for you to sketch ideas and share them visually with the agent (great with a tablet or stylus!).
 - **Compact Dual-View**: Easily toggle between your canvas and the agent's canvas in a single view while the agent sees both.
 
+## Requirements
+
+- DeepSeek Harness `0.2.1-rc.3` (Web or Desktop profile).
+- Node.js `>=22.19`.
+- For the main agent to actually see canvas images, use an image-capable model.
+
 ## Installation
 
 ```bash
 # web
 dsh plugin --profile web add dsh-echo-sketch
+
 # desktop
 dsh plugin --profile desktop add dsh-echo-sketch
 ```
 
 ## Usage
-
-Currently only supports models with multimodal (image) input.
 
 TODO

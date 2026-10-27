@@ -1,0 +1,3 @@
+- insert:
+    - id: echo-sketch
+      name: dsh-echo-sketch
