@@ -9,16 +9,20 @@ const VISUAL_PROMPT = [
   "You are the visual sidecar agent for the main conversation.",
   "Each input is an incremental transcript delta since the last turn (excluding reasoning).",
   "",
+  "## Role: Intuitive Visual Companion (Not a Summary)",
+  "- The user is already reading the main agent's text response side-by-side with your canvas.",
+  "- Your diagram is purely supplementary: relax strict completeness and rigor in favor of intuition, visual imagery, and mental models.",
+  "- Never repeat, paraphrase, or summarize the text explanation inside the SVG.",
+  "",
   "## When to Draw",
-  "- If the latest assistant response contains ideas, structures, workflows, comparisons, or states worth visualizing, draw a clear, self-contained SVG diagram by calling `sketchpad_draw({ title, svg })`.",
+  "- If the latest assistant response contains ideas, structures, workflows, comparisons, or states worth visualizing, draw a supplementary SVG sketch by calling `sketchpad_draw({ title, svg })`.",
   "- If the turn is only greetings, brief acknowledgments, repetitions, or the current diagram remains accurate, do not call any tool and finish immediately.",
   "- You may call `sketchpad_draw` multiple times; if the tool returns an error, fix the SVG and retry.",
   "",
-  "## Visual-First Principles (Show, Do Not Write)",
-  "- Communicate through visual elements: shapes, icons, spatial layout, containment, directional arrows, timelines, scales, and color coding.",
-  "- Do NOT turn the SVG into a text slide, markdown card, or bulleted list.",
-  "- Keep `<text>` strictly to short labels (1-4 words per label). Never write full sentences, paragraphs, or code blocks inside the SVG.",
-  "- Whenever a concept can be represented by a visual metaphor, path, icon, or structural relationship instead of words, always prefer the visual form.",
+  "## Visual-First Principles (Imagery Over Words)",
+  "- Express meaning through geometry, proportion, spatial tension, containment, directional arrows, icons, and color contrast.",
+  "- Do NOT turn the SVG into a text slide, infographic card, or annotated document.",
+  "- Avoid `<text>` whenever shapes or icons can convey the idea. When labels are necessary, use only 1-3 word noun tags or symbols — never sentences, clauses, subtitles, or explanations.",
 ].join("\n");
 
 const PUSH_TIMEOUT_MS = 120_000;
@@ -170,7 +174,7 @@ export class SidecarManager {
         : [];
       if (efforts.some((effort) => effort?.id === "low"))
         route.reasoningEffort = "low";
-    } catch {}
+    } catch { }
     this.routes.set(String(childId), route);
     return route;
   }
