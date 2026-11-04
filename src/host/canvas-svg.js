@@ -1,9 +1,11 @@
 /** Agent SVG 的安全提取、补齐与限制（宿主侧，纯函数）。 */
 
 export const MAX_AGENT_SVG_BYTES = 200_000;
+export const MAX_TEXT_UNITS = 4;
+export const MAX_TEXT_CHARS = 24;
 
-const DEFAULT_WIDTH = 1200;
-const DEFAULT_HEIGHT = 800;
+const DEFAULT_WIDTH = 600;
+const DEFAULT_HEIGHT = 900;
 const DANGEROUS_TAG =
   /<\s*(script|foreignObject|iframe|object|embed|style|link|meta|image)\b/i;
 const EVENT_ATTRIBUTE = /\son[a-z]+\s*=/i;
@@ -12,9 +14,13 @@ const EXTERNAL_URL = /url\s*\(\s*["']?(?!#)/i;
 const SCRIPT_URL = /javascript\s*:/i;
 const DOCTYPE = /<!DOCTYPE[\s\S]*?>/gi;
 const XML_DECLARATION = /<\?xml[\s\S]*?\?>/gi;
+const TEXT_ELEMENT = /<text\b[^>]*>([\s\S]*?)<\/text>/gi;
+const INNER_TAG = /<[^>]+>/g;
+const TEXT_UNIT =
+  /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]|[A-Za-z0-9_+-]+/gu;
 
 /**
- * 从模型文本中提取 SVG，并做安全与尺寸规范化。
+ * 从模型文本中提取 SVG，并做安全、文字长度与尺寸规范化。
  * @param {unknown} input
  * @returns {{ok: true, svg: string, title: string} | {ok: false, error: string}}
  */
@@ -34,6 +40,8 @@ export function normalizeAgentSvg(input) {
   }
   const unsafe = unsafeReason(svg);
   if (unsafe !== undefined) return { ok: false, error: unsafe };
+  const textError = validateTextElements(svg);
+  if (textError !== undefined) return { ok: false, error: textError };
   const open = /<svg\b[^>]*>/i.exec(svg);
   if (open === null) return { ok: false, error: "没有找到 <svg> 根元素" };
   const normalizedOpen = normalizeOpenTag(open[0]);
@@ -122,6 +130,21 @@ function extractTitle(svg) {
   const match = /<title\b[^>]*>([\s\S]*?)<\/title>/i.exec(svg);
   if (match === null) return "";
   return decodeEntities(match[1]).replace(/\s+/g, " ").trim().slice(0, 80);
+}
+
+function validateTextElements(svg) {
+  for (const match of svg.matchAll(TEXT_ELEMENT)) {
+    const plain = decodeEntities(match[1].replace(INNER_TAG, " "))
+      .replace(/\s+/g, " ")
+      .trim();
+    if (plain === "") continue;
+    const units = plain.match(TEXT_UNIT) ?? [];
+    if (units.length > MAX_TEXT_UNITS || plain.length > MAX_TEXT_CHARS) {
+      const preview = plain.length > 24 ? `${plain.slice(0, 24)}…` : plain;
+      return `SVG <text> 标签过长（"${preview}"，上限 ${MAX_TEXT_UNITS} 个字/词）：请删掉句子，改用图形、图标或至多 ${MAX_TEXT_UNITS} 个字/词的短标签`;
+    }
+  }
+  return undefined;
 }
 
 function decodeEntities(value) {

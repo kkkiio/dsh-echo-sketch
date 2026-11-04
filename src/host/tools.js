@@ -15,15 +15,11 @@ export function registerSketchpadTools(ctx, { store, bridge, sidecar }) {
     description:
       "更新 Agent 视觉画板：传入一张独立 SVG。自动视觉 sidecar 会调用它；主 Agent 也可在用户明确要求改图时调用。",
     parameters: {
-      title: {
-        type: "string",
-        required: true,
-        description: "图示标题，最多 80 字符。",
-      },
       svg: {
         type: "string",
         required: true,
-        description: "完整、独立的 SVG 文档，必须包含 xmlns 与 viewBox。",
+        description:
+          "完整、独立的 SVG 文档，必须包含 xmlns 与竖版 viewBox（如 0 0 600 900，自上而下布局以适配窄侧栏）；每个 <text> 元素最多 4 个字/词。",
       },
     },
     output: {
@@ -53,12 +49,7 @@ export function registerSketchpadTools(ctx, { store, bridge, sidecar }) {
         throw new Error("找不到这个 sidecar 对应的主会话");
       const mainAgent = ctx.agents.get(mainSessionId);
       const turn = mainAgent === undefined ? 0 : turnOf(ctx, mainAgent);
-      const title =
-        String(args.title ?? "")
-          .trim()
-          .slice(0, 80) ||
-        normalized.title ||
-        "Agent 图示";
+      const title = normalized.title || "Agent 图示";
       const state = await store.setAgentCanvas(mainSessionId, {
         svg: normalized.svg,
         title,

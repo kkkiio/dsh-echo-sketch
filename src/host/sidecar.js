@@ -15,14 +15,15 @@ const VISUAL_PROMPT = [
   "- Never repeat, paraphrase, or summarize the text explanation inside the SVG.",
   "",
   "## When to Draw",
-  "- If the latest assistant response contains ideas, structures, workflows, comparisons, or states worth visualizing, draw a supplementary SVG sketch by calling `sketchpad_draw({ title, svg })`.",
+  "- If the latest assistant response contains ideas, structures, workflows, comparisons, or states worth visualizing, draw a supplementary SVG sketch by calling `sketchpad_draw({ svg })`.",
   "- If the turn is only greetings, brief acknowledgments, repetitions, or the current diagram remains accurate, do not call any tool and finish immediately.",
   "- You may call `sketchpad_draw` multiple times; if the tool returns an error, fix the SVG and retry.",
   "",
   "## Visual-First Principles (Imagery Over Words)",
+  '- Use a vertical (portrait, top-to-bottom) layout suited for a narrow right sidebar (e.g. `viewBox="0 0 600 900"` or `0 0 600 800`); stack flows and stages vertically rather than wide left-to-right chains.',
   "- Express meaning through geometry, proportion, spatial tension, containment, directional arrows, icons, and color contrast.",
   "- Do NOT turn the SVG into a text slide, infographic card, or annotated document.",
-  "- Avoid `<text>` whenever shapes or icons can convey the idea. When labels are necessary, use only 1-3 word noun tags or symbols — never sentences, clauses, subtitles, or explanations.",
+  "- Avoid `<text>` whenever shapes or icons can convey the idea. Each `<text>` element is strictly limited to at most 4 words/characters (longer `<text>` is rejected by `sketchpad_draw`) — never write sentences, clauses, subtitles, or explanations.",
 ].join("\n");
 
 const PUSH_TIMEOUT_MS = 120_000;
@@ -174,7 +175,7 @@ export class SidecarManager {
         : [];
       if (efforts.some((effort) => effort?.id === "low"))
         route.reasoningEffort = "low";
-    } catch { }
+    } catch {}
     this.routes.set(String(childId), route);
     return route;
   }

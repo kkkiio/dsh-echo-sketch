@@ -63,7 +63,7 @@ test("sketchpad_draw validates and stores SVG with the correct source", async ()
   const { tools, calls } = setup();
   const draw = tools.get("sketchpad_draw");
   const result = await draw.execute(
-    { title: "流程", svg: SVG },
+    { svg: SVG },
     { agent: { id: "main" }, signal: new AbortController().signal },
   );
   assert.deepEqual(result, { title: "流程", revision: 2 });
@@ -73,10 +73,17 @@ test("sketchpad_draw validates and stores SVG with the correct source", async ()
   assert.equal(calls[0][2].sourceTurn, 3);
   await assert.rejects(
     draw.execute(
-      { title: "x", svg: "<svg><script/></svg>" },
+      { svg: "<svg><script/></svg>" },
       { agent: { id: "main" }, signal: new AbortController().signal },
     ),
     /禁止/,
+  );
+  await assert.rejects(
+    draw.execute(
+      { svg: "<svg><text>这句说明文字明显超过了四个字</text></svg>" },
+      { agent: { id: "main" }, signal: new AbortController().signal },
+    ),
+    /<text> 标签过长/,
   );
 });
 
@@ -84,7 +91,7 @@ test("sidecar draw maps child to main session", async () => {
   const { tools, calls } = setup();
   const draw = tools.get("sketchpad_draw");
   await draw.execute(
-    { title: "x", svg: SVG },
+    { svg: SVG },
     { agent: { id: "sidecar-1" }, signal: new AbortController().signal },
   );
   assert.equal(calls[0][1], "main");

@@ -48,3 +48,26 @@ test("extractSvg prefers fenced body", () => {
     "<svg><rect/></svg>",
   );
 });
+
+test("normalizeAgentSvg allows short <text> labels and rejects >4 words/characters", () => {
+  assert.equal(
+    normalizeAgentSvg('<svg><text x="10" y="20">用户画板</text></svg>').ok,
+    true,
+  );
+  assert.equal(
+    normalizeAgentSvg('<svg><text x="10" y="20">Main Agent Loop</text></svg>')
+      .ok,
+    true,
+  );
+  const tooManyCjk = normalizeAgentSvg(
+    '<svg><text x="10" y="20">超过四个字的句子</text></svg>',
+  );
+  assert.equal(tooManyCjk.ok, false);
+  assert.match(tooManyCjk.error, /<text> 标签过长/);
+
+  const tooManyWords = normalizeAgentSvg(
+    '<svg><text x="10" y="20"><tspan>This is</tspan><tspan>a long sentence</tspan></text></svg>',
+  );
+  assert.equal(tooManyWords.ok, false);
+  assert.match(tooManyWords.error, /<text> 标签过长/);
+});
