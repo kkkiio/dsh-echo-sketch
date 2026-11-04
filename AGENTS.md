@@ -34,15 +34,16 @@
 
 ## Policies & Mandatory Rules
 
-### Less Comment
+### No Implementation Comments
 
-不写实现注释.
-API Doc Comments 写:
+编写或修改代码时，不在函数体内部或内部逻辑处写解释实现细节的注释。
 
-- 一句话用途
-- 参数含义
-- 返回值含义
-- 边界情况
+公共接口用 API Doc Comment，从使用者视角写清楚：
+
+1. 一句话用途。
+2. 重要参数含义与返回值含义。
+3. 可能抛出的异常或错误。
+4. 不直观的边界情况。
 
 ### Client Copy
 
