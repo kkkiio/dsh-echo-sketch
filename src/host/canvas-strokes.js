@@ -77,10 +77,17 @@ function normalizePoints(input) {
     const previous = points.at(-1);
     if (previous !== undefined && previous[0] === x && previous[1] === y)
       continue;
-    points.push([x, y]);
+    const pressure = clampNumber(raw[2], 0, 1, NaN);
+    points.push(Number.isFinite(pressure) ? [x, y, round2(pressure)] : [x, y]);
   }
-  if (points.length === 1)
-    points.push([points[0][0] + 0.1, points[0][1] + 0.1]);
+  if (points.length === 1) {
+    const first = points[0];
+    points.push(
+      first.length >= 3
+        ? [first[0] + 0.1, first[1] + 0.1, first[2]]
+        : [first[0] + 0.1, first[1] + 0.1],
+    );
+  }
   return points;
 }
 
@@ -92,6 +99,10 @@ function clampNumber(value, min, max, fallback) {
 
 function round1(value) {
   return Math.round(value * 10) / 10;
+}
+
+function round2(value) {
+  return Math.round(value * 100) / 100;
 }
 
 /**

@@ -26,22 +26,28 @@ function drawStroke(context, stroke) {
   context.fill(new Path2D(d));
 }
 
-/** 把指针位置映射到 1200×800 逻辑坐标。 */
+/** 把指针位置映射到 1200×800 逻辑坐标，触控笔额外保留真实压感。 */
 export function pointFromEvent(event, canvas) {
   const rect = canvas.getBoundingClientRect();
   if (rect.width === 0 || rect.height === 0) return [0, 0];
-  return [
-    clamp(
-      ((event.clientX - rect.left) * CANVAS_WIDTH) / rect.width,
-      0,
-      CANVAS_WIDTH,
-    ),
-    clamp(
-      ((event.clientY - rect.top) * CANVAS_HEIGHT) / rect.height,
-      0,
-      CANVAS_HEIGHT,
-    ),
-  ];
+  const x = clamp(
+    ((event.clientX - rect.left) * CANVAS_WIDTH) / rect.width,
+    0,
+    CANVAS_WIDTH,
+  );
+  const y = clamp(
+    ((event.clientY - rect.top) * CANVAS_HEIGHT) / rect.height,
+    0,
+    CANVAS_HEIGHT,
+  );
+  if (
+    event.pointerType === "pen" &&
+    Number.isFinite(event.pressure) &&
+    event.pressure > 0
+  ) {
+    return [x, y, clamp(event.pressure, 0.05, 1)];
+  }
+  return [x, y];
 }
 
 /** 是否聚焦在可编辑控件中。 */

@@ -1,6 +1,6 @@
 /** 双画板 tab 正文。 */
 
-import React, { useEffect, useState, useSyncExternalStore } from "react";
+import React, { useEffect, useSyncExternalStore } from "react";
 import { AgentCanvas } from "./AgentCanvas.jsx";
 import { UserCanvas } from "./UserCanvas.jsx";
 import { Icon } from "./icons.jsx";
@@ -9,13 +9,12 @@ import { translate } from "./i18n.js";
 import { Notice } from "./ui.jsx";
 
 /** 双画板组件。 */
-export function Sketchpad({ ctx, sessionId, useTabInfo, t }) {
+export function Sketchpad({ ctx, sessionId, useTabInfo, inputActions, t }) {
   const tr = typeof t === "function" ? t : translate;
   const store = getSketchpadStore(sessionId, ctx);
   const state = useSyncExternalStore(store.subscribe, store.getSnapshot);
   const info = typeof useTabInfo === "function" ? useTabInfo() : undefined;
   const visible = info?.tab?.visible ?? true;
-  const [note, setNote] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -31,11 +30,6 @@ export function Sketchpad({ ctx, sessionId, useTabInfo, t }) {
       clearTimeout(timer);
     };
   }, [store, visible]);
-
-  const send = async () => {
-    await store.sendToAgent(note);
-    setNote("");
-  };
 
   const status = visualStatus(state.visual);
   const statusLabel = tr(`status.${status.key}`);
@@ -79,44 +73,14 @@ export function Sketchpad({ ctx, sessionId, useTabInfo, t }) {
         ) : state.viewMode === "agent" ? (
           <AgentCanvas store={store} sessionId={sessionId} t={tr} />
         ) : (
-          <UserCanvas store={store} sessionId={sessionId} t={tr} />
+          <UserCanvas
+            store={store}
+            sessionId={sessionId}
+            inputActions={inputActions}
+            t={tr}
+          />
         )}
       </main>
-
-      <div className="echo-sketch-composer">
-        <input
-          className="echo-sketch-input"
-          value={note}
-          placeholder={tr("prompt.placeholder")}
-          maxLength={500}
-          aria-label={tr("prompt.aria")}
-          onChange={(event) => setNote(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.nativeEvent.isComposing) {
-              event.preventDefault();
-              void send();
-            }
-          }}
-        />
-        <button
-          type="button"
-          className="echo-sketch-send echo-sketch-tool"
-          disabled={state.sending}
-          aria-label={tr("send.aria")}
-          data-tip={tr("send.tip")}
-          data-tip-align="end"
-          onClick={() => {
-            void send();
-          }}
-        >
-          {state.sending ? (
-            <span className="echo-sketch-spinner is-small" aria-hidden="true" />
-          ) : (
-            <Icon name="send" size={15} />
-          )}
-          <span>{state.sending ? tr("send.sending") : tr("send")}</span>
-        </button>
-      </div>
 
       {state.error === "" ? null : (
         <Notice tone="error" icon="alert" t={tr}>

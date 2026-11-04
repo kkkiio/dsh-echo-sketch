@@ -30,6 +30,19 @@ test("normalizeStrokes clamps values and drops invalid strokes", () => {
   ]);
   assert.equal(strokes[1].color, "#1f2329");
   assert.equal(strokes[1].points.length, 2);
+
+  const pen = normalizeStrokes([
+    {
+      points: [
+        [10, 20, 0.256],
+        [30, 40, 1.5],
+      ],
+    },
+  ]);
+  assert.deepEqual(pen.strokes[0].points, [
+    [10, 20, 0.26],
+    [30, 40, 1],
+  ]);
 });
 
 test("strokesToSvg renders a white background and erase strokes as white", async () => {

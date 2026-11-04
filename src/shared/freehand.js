@@ -4,12 +4,18 @@ import { getStroke } from "perfect-freehand";
 
 /**
  * 把一组笔画点转换为 SVG path 的 d 字符串（填充轮廓，非描边）。
- * @param {number[][]} points 笔画点 [[x, y], ...]
+ * @param {number[][]} points 笔画点 [[x, y] | [x, y, pressure], ...]
  * @param {number} size 笔画最大粗细（px）
  * @returns {string} SVG path d；空点列返回空串
  */
 export function strokePathD(points, size) {
-  const outline = getStroke(points, { size });
+  const hasRealPressure = points.some(
+    (point) => Array.isArray(point) && Number.isFinite(point[2]),
+  );
+  const outline = getStroke(points, {
+    size,
+    simulatePressure: !hasRealPressure,
+  });
   if (outline.length === 0) return "";
   const d = outline.reduce(
     (acc, [x0, y0], index, arr) => {

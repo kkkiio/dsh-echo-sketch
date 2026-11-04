@@ -27,7 +27,7 @@ const WIDTHS = [
 ];
 
 /** 用户画板组件。 */
-export function UserCanvas({ store, sessionId, t }) {
+export function UserCanvas({ store, sessionId, inputActions, t }) {
   const tr = typeof t === "function" ? t : translate;
   const state = useSyncExternalStore(store.subscribe, store.getSnapshot);
   const canvasRef = useRef(null);
@@ -35,10 +35,12 @@ export function UserCanvas({ store, sessionId, t }) {
   const strokesRef = useRef(state.user.strokes);
   const activeRef = useRef(null);
   const frameRef = useRef(0);
+  const addedTimerRef = useRef(0);
   const [color, setColor] = useState(COLORS[0].value);
   const [width, setWidth] = useState(WIDTHS[0].value);
   const [eraser, setEraser] = useState(false);
   const [hasInk, setHasInk] = useState(state.user.strokes.length > 0);
+  const [added, setAdded] = useState(false);
   const [actionError, setActionError] = useState("");
 
   useEffect(() => {
@@ -51,6 +53,7 @@ export function UserCanvas({ store, sessionId, t }) {
   useEffect(
     () => () => {
       if (frameRef.current !== 0) cancelAnimationFrame(frameRef.current);
+      if (addedTimerRef.current !== 0) clearTimeout(addedTimerRef.current);
     },
     [],
   );
@@ -81,11 +84,14 @@ export function UserCanvas({ store, sessionId, t }) {
       redraw();
       return;
     }
-    if (stroke.points.length === 1)
-      stroke.points.push([
-        stroke.points[0][0] + 0.1,
-        stroke.points[0][1] + 0.1,
-      ]);
+    if (stroke.points.length === 1) {
+      const first = stroke.points[0];
+      stroke.points.push(
+        first.length >= 3
+          ? [first[0] + 0.1, first[1] + 0.1, first[2]]
+          : [first[0] + 0.1, first[1] + 0.1],
+      );
+    }
     strokesRef.current = [...strokesRef.current, stroke];
     setHasInk(true);
     redraw();
@@ -180,6 +186,21 @@ export function UserCanvas({ store, sessionId, t }) {
     }
   };
 
+  const addToChat = () => {
+    try {
+      setActionError("");
+      if (!store.addToChat(strokesRef.current, inputActions)) return;
+      setAdded(true);
+      if (addedTimerRef.current !== 0) clearTimeout(addedTimerRef.current);
+      addedTimerRef.current = window.setTimeout(() => {
+        addedTimerRef.current = 0;
+        setAdded(false);
+      }, 1600);
+    } catch (error) {
+      setActionError(String(error?.message ?? error));
+    }
+  };
+
   const onKeyDown = (event) => {
     if (isEditableElement(document.activeElement)) return;
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
@@ -244,6 +265,18 @@ export function UserCanvas({ store, sessionId, t }) {
             disabled={!hasInk}
             onClick={download}
           />
+          <button
+            type="button"
+            className="echo-sketch-add echo-sketch-tool"
+            disabled={!hasInk}
+            aria-label={tr("add.aria")}
+            data-tip={hasInk ? tr("add.tip") : tr("add.empty")}
+            data-tip-align="end"
+            onClick={addToChat}
+          >
+            <Icon name={added ? "check" : "plus"} size={14} />
+            <span>{tr(added ? "add.added" : "add")}</span>
+          </button>
         </div>
       </div>
 

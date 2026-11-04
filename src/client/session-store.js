@@ -8,7 +8,7 @@ import {
   postSettings,
 } from "./api.js";
 import { translate } from "./i18n.js";
-import { renderAgentPng, renderUserPng } from "./raster.js";
+import { renderAgentPng, renderUserPng, renderUserPngFile } from "./raster.js";
 
 const stores = new Map();
 
@@ -150,54 +150,31 @@ function createStore(sessionId, ctx) {
     }
   };
 
-  const sendToAgent = async (note) => {
-    set({ sending: true, error: "" });
-    try {
-      await flush();
-      /** @type {any[]} */
-      const content = [
-        {
-          type: "text",
-          text: String(note ?? "").trim() || translate("prompt.fallback"),
-        },
-      ];
-      if (state.user.strokes.length > 0) {
-        const rendered = renderUserPng(state.user.strokes);
-        content.push({
-          type: "image",
-          mediaType: "image/png",
-          data: rendered.png,
-          name: translate("file.user"),
-        });
-      }
-      if (state.agent.svg.length > 0) {
-        try {
-          const rendered = await renderAgentPng(state.agent.svg);
-          content.push({
-            type: "image",
-            mediaType: "image/png",
-            data: rendered.png,
-            name: translate("file.agent"),
-          });
-        } catch {}
-      }
-      await ctx.sessions.using(
-        sessionId,
-        { source: "echo-sketch" },
-        async (reference) => {
-          const result = await reference.binding.session.prompt(
-            content,
-            "queue",
-          );
-          if (!result.ok)
-            throw new Error(result.error?.message ?? translate("error.send"));
-        },
-      );
-    } catch (error) {
-      set({ error: messageOf(error) });
-    } finally {
-      set({ sending: false });
+  const addToChat = (strokes = state.user.strokes, inputActions) => {
+    set({ error: "" });
+    if (!Array.isArray(strokes) || strokes.length === 0) return false;
+    const conversation = ctx?.get?.("conversation");
+    const binding = ctx?.sessions?.binding?.(sessionId);
+    const scoped = ctx?.sessions?.scope?.(sessionId);
+    const input =
+      inputActions ??
+      (scoped === undefined ? undefined : conversation?.input?.for?.(scoped));
+    if (
+      typeof conversation?.createDrafts !== "function" ||
+      typeof input?.addAttachments !== "function"
+    ) {
+      throw new Error(translate("error.addToChat"));
     }
+    const file = renderUserPngFile(strokes, translate("file.user"));
+    const ordinary = binding?.session?.getSnapshot?.()?.subagent === null;
+    const drafts = conversation.createDrafts(sessionId, [file], ordinary);
+    const ids = drafts.map((draft) => draft.id);
+    if (!input.addAttachments(ids)) {
+      conversation.releaseDraftAttachments?.(drafts);
+      throw new Error(translate("error.addToChat"));
+    }
+    if (scoped !== undefined) conversation?.input?.for?.(scoped)?.focus?.();
+    return true;
   };
 
   const setAutoDraw = async (value) => {
@@ -245,7 +222,7 @@ function createStore(sessionId, ctx) {
     refresh,
     saveUser,
     flush,
-    sendToAgent,
+    addToChat,
     setAutoDraw,
     redraw,
     clearAgent,
@@ -280,7 +257,6 @@ function initialState() {
     viewMode: "agent",
     agentSeenRevision: 0,
     saving: false,
-    sending: false,
     dirty: false,
   };
 }

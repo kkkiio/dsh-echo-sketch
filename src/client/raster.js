@@ -18,6 +18,15 @@ export function renderUserPng(strokes) {
   };
 }
 
+/** 用户画板 → PNG File。 */
+export function renderUserPngFile(strokes, filename) {
+  const rendered = renderUserPng(strokes);
+  const bytes = Uint8Array.from(atob(rendered.png), (char) =>
+    char.charCodeAt(0),
+  );
+  return new File([bytes], filename, { type: "image/png" });
+}
+
 /** Agent SVG → PNG；失败时抛出可读错误。 */
 export async function renderAgentPng(svg, maxWidth = CANVAS_WIDTH) {
   if (typeof svg !== "string" || svg.trim().length === 0)
