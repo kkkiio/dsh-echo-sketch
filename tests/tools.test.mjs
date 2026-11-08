@@ -50,10 +50,14 @@ function setup() {
       };
     },
   };
+  const mappings = new Map([["sidecar-1", "main"]]);
   const sidecar = {
     isSidecar: (id) => String(id).startsWith("sidecar-"),
-    mainSessionOf: (id) =>
-      String(id).startsWith("sidecar-") ? "main" : undefined,
+    mainSessionFor: (agent) =>
+      String(agent.id).startsWith("sidecar-")
+        ? (mappings.get(String(agent.id)) ??
+          agent.session?.header?.parentSession)
+        : String(agent.id),
   };
   registerSketchpadTools(ctx, { store, bridge, sidecar });
   return { tools, calls };
@@ -93,6 +97,23 @@ test("sidecar draw maps child to main session", async () => {
   await draw.execute(
     { svg: SVG },
     { agent: { id: "sidecar-1" }, signal: new AbortController().signal },
+  );
+  assert.equal(calls[0][1], "main");
+  assert.equal(calls[0][2].source, "auto");
+});
+
+test("sidecar draw falls back to header parentSession", async () => {
+  const { tools, calls } = setup();
+  const draw = tools.get("sketchpad_draw");
+  await draw.execute(
+    { svg: SVG },
+    {
+      agent: {
+        id: "sidecar-2",
+        session: { header: { parentSession: "main" } },
+      },
+      signal: new AbortController().signal,
+    },
   );
   assert.equal(calls[0][1], "main");
   assert.equal(calls[0][2].source, "auto");

@@ -42,9 +42,7 @@ export function registerSketchpadTools(ctx, { store, bridge, sidecar }) {
     async execute(args, exec) {
       const normalized = normalizeAgentSvg(args.svg);
       if (normalized.ok === false) throw new Error(normalized.error);
-      const mainSessionId = sidecar.isSidecar(exec.agent.id)
-        ? sidecar.mainSessionOf(exec.agent.id)
-        : String(exec.agent.id);
+      const mainSessionId = sidecar.mainSessionFor(exec.agent);
       if (mainSessionId === undefined)
         throw new Error("找不到这个 sidecar 对应的主会话");
       const mainAgent = ctx.agents.get(mainSessionId);
@@ -123,9 +121,7 @@ export function registerSketchpadTools(ctx, { store, bridge, sidecar }) {
     },
     isConcurrencySafe: () => true,
     async execute(args, exec) {
-      const mainSessionId = sidecar.isSidecar(exec.agent.id)
-        ? sidecar.mainSessionOf(exec.agent.id)
-        : String(exec.agent.id);
+      const mainSessionId = sidecar.mainSessionFor(exec.agent);
       if (mainSessionId === undefined)
         throw new Error("找不到这个 sidecar 对应的主会话");
       const result = await bridge.request(

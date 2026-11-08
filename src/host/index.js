@@ -37,6 +37,7 @@ export function apply(ctx) {
     ctx,
     store,
     bridge,
+    sidecar,
     triggerVisual: (sessionId, options) => triggerVisual(sessionId, options),
   })) {
     ctx.effect(

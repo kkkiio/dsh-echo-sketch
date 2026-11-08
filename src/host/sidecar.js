@@ -54,14 +54,22 @@ export class SidecarManager {
     return this.childToMain.get(String(id ?? ""));
   }
 
+  /** 解析一个 agent 对应的主会话 id；sidecar 优先查映射，缺失时回退 header.parentSession 并回填。 */
+  mainSessionFor(agent) {
+    if (!this.isSidecar(agent.id)) return String(agent.id);
+    const mapped = this.mainSessionOf(agent.id);
+    if (mapped !== undefined) return mapped;
+    const parent = agent.session?.header?.parentSession;
+    if (typeof parent !== "string" || parent === "") return undefined;
+    this.childToMain.set(String(agent.id), parent);
+    return parent;
+  }
+
   /** 处理 agent/created：创建与 cold resume 都会调用。 */
   configureChild(agent) {
     if (!this.isSidecar(agent.id)) return;
     const childId = String(agent.id);
-    const mainSessionId = this.mainSessionOf(childId);
-    if (mainSessionId !== undefined) {
-      this.store.setVisual(mainSessionId, "drawing").catch(() => undefined);
-    }
+    this.mainSessionFor(agent);
     agent.ctx.systemPrompt.context({
       name: "echo-sketch:visual",
       order: 130,
@@ -92,6 +100,7 @@ export class SidecarManager {
       childId = `${SIDECAR_PREFIX}${randomUUID()}`;
       this.childToMain.set(childId, String(mainAgent.id));
       await this.store.setSidecarChildId(mainAgent.id, childId);
+      await this.store.setMainSessionId(childId, mainAgent.id);
       const route = await this.prepareRoute(childId, mainAgent);
       const activation = await this.ctx.subagents.startActivation({
         provider: "spawn",
@@ -113,6 +122,7 @@ export class SidecarManager {
       return childId;
     }
     this.childToMain.set(childId, String(mainAgent.id));
+    await this.store.setMainSessionId(childId, mainAgent.id);
     const route = await this.prepareRoute(childId, mainAgent);
     const live = this.ctx.agents.get(childId);
     if (live !== undefined) this.selectRoute(live, route);

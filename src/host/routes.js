@@ -9,7 +9,16 @@ const MAX_SMALL_BODY = 32 * 1024;
 /**
  * 构造四个主机路由；由插件入口用 connection.fetch.register 挂载。
  */
-export function createRoutes({ ctx, store, bridge, triggerVisual }) {
+export function createRoutes({ ctx, store, bridge, triggerVisual, sidecar }) {
+  const resolveSessionId = async (sessionId) => {
+    if (!sidecar.isSidecar(sessionId)) return sessionId;
+    const parent = ctx.agents.get(sessionId)?.session?.header?.parentSession;
+    if (typeof parent === "string" && parent !== "") return parent;
+    const mapped = sidecar.mainSessionOf(sessionId);
+    if (mapped !== undefined) return mapped;
+    const own = await store.get(sessionId);
+    return own.mainSessionId !== "" ? own.mainSessionId : sessionId;
+  };
   const supportCache = new Map();
   const imageSupportFor = async (sessionId) => {
     const agent = ctx.agents.get(sessionId);
@@ -40,12 +49,13 @@ export function createRoutes({ ctx, store, bridge, triggerVisual }) {
     fetch: async (request) => {
       const sessionId = sessionIdOf(request);
       if (sessionId === undefined) return bad("sessionId is required");
-      const state = await store.publicState(sessionId);
+      const resolvedId = await resolveSessionId(sessionId);
+      const state = await store.publicState(resolvedId);
       return json({
         ok: true,
         state,
-        imageSupport: await imageSupportFor(sessionId),
-        renderRequest: bridge.currentRequest(sessionId),
+        imageSupport: await imageSupportFor(resolvedId),
+        renderRequest: bridge.currentRequest(resolvedId),
       });
     },
   };
@@ -63,16 +73,17 @@ export function createRoutes({ ctx, store, bridge, triggerVisual }) {
       }
       const sessionId = validSessionId(body.sessionId);
       if (sessionId === undefined) return bad("invalid sessionId");
+      const resolvedId = await resolveSessionId(sessionId);
       if (body.kind === "agent") {
         if (body.clear !== true) return bad("agent canvas can only be cleared");
-        await store.clearAgentCanvas(sessionId);
+        await store.clearAgentCanvas(resolvedId);
       } else if (body.kind === "user") {
-        if (body.clear === true) await store.clearUserCanvas(sessionId);
-        else await store.saveUserStrokes(sessionId, body.strokes);
+        if (body.clear === true) await store.clearUserCanvas(resolvedId);
+        else await store.saveUserStrokes(resolvedId, body.strokes);
       } else {
         return bad("kind must be user or agent");
       }
-      return json({ ok: true, state: await store.publicState(sessionId) });
+      return json({ ok: true, state: await store.publicState(resolvedId) });
     },
   };
 
@@ -91,8 +102,9 @@ export function createRoutes({ ctx, store, bridge, triggerVisual }) {
       if (sessionId === undefined) return bad("invalid sessionId");
       if (typeof body.autoDraw !== "boolean")
         return bad("autoDraw must be boolean");
-      await store.setSettings(sessionId, { autoDraw: body.autoDraw });
-      return json({ ok: true, state: await store.publicState(sessionId) });
+      const resolvedId = await resolveSessionId(sessionId);
+      await store.setSettings(resolvedId, { autoDraw: body.autoDraw });
+      return json({ ok: true, state: await store.publicState(resolvedId) });
     },
   };
 
@@ -109,10 +121,11 @@ export function createRoutes({ ctx, store, bridge, triggerVisual }) {
       }
       const sessionId = validSessionId(body.sessionId);
       if (sessionId === undefined) return bad("invalid sessionId");
-      if (ctx.agents.get(sessionId) === undefined)
+      const resolvedId = await resolveSessionId(sessionId);
+      if (ctx.agents.get(resolvedId) === undefined)
         return json({ ok: false, error: "session is not live" }, 409);
       try {
-        await triggerVisual(sessionId, { force: true });
+        await triggerVisual(resolvedId, { force: true });
         return json({ ok: true });
       } catch (error) {
         return json({ ok: false, error: String(error?.message ?? error) }, 500);
@@ -136,7 +149,7 @@ export function createRoutes({ ctx, store, bridge, triggerVisual }) {
       if (typeof body.requestId !== "string" || body.requestId.length === 0)
         return bad("requestId is required");
       const accepted = await bridge.accept(
-        sessionId,
+        await resolveSessionId(sessionId),
         body.requestId,
         body.images,
         body.errors,

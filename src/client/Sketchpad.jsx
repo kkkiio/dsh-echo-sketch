@@ -37,33 +37,24 @@ export function Sketchpad({ ctx, sessionId, useTabInfo, inputActions, t }) {
   return (
     <div className="echo-sketch-root">
       <header className="echo-sketch-topbar">
-        <div className="echo-sketch-brand">
-          <span className="echo-sketch-logo" aria-hidden="true">
-            <Icon name="brand" size={19} />
-          </span>
-          <div className="echo-sketch-brand-text">
-            <div className="echo-sketch-brand-title">
-              {tr("tab.title")}
-              {status.busy || status.error ? (
-                <span
-                  className={`echo-sketch-dot${status.busy ? " is-busy" : " is-error"}`}
-                  role="status"
-                  aria-label={tr("status.label", { status: statusLabel })}
-                  data-tip={tr("status.label", { status: statusLabel })}
-                  data-tip-align="start"
-                />
-              ) : null}
-            </div>
-            <div className="echo-sketch-brand-sub">{tr("brand.subtitle")}</div>
-          </div>
-        </div>
         <div
           className="echo-sketch-segment"
           role="tablist"
           aria-label={tr("tab.list")}
         >
           {viewTab(store, state, "user", "tab.user", "pencil", tr)}
-          {viewTab(store, state, "agent", "tab.agent", "sparkles", tr)}
+          {viewTab(
+            store,
+            state,
+            "agent",
+            "tab.agent",
+            "sparkles",
+            tr,
+            status.busy || status.error
+              ? `echo-sketch-dot${status.busy ? " is-busy" : " is-error"}`
+              : "",
+            tr("status.label", { status: statusLabel }),
+          )}
         </div>
       </header>
 
@@ -91,7 +82,7 @@ export function Sketchpad({ ctx, sessionId, useTabInfo, inputActions, t }) {
   );
 }
 
-function viewTab(store, state, mode, labelKey, icon, t) {
+function viewTab(store, state, mode, labelKey, icon, t, dotClass, dotLabel) {
   const active = state.viewMode === mode;
   const hasUpdate =
     mode === "agent" &&
@@ -108,7 +99,15 @@ function viewTab(store, state, mode, labelKey, icon, t) {
     >
       <Icon name={icon} size={15} />
       <span>{t(labelKey)}</span>
-      {hasUpdate ? (
+      {dotClass ? (
+        <span
+          className={dotClass}
+          role="status"
+          aria-label={dotLabel}
+          data-tip={dotLabel}
+          data-tip-align="start"
+        />
+      ) : hasUpdate ? (
         <span className="echo-sketch-new" aria-label={t("tab.new")} />
       ) : null}
     </button>

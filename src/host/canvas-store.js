@@ -143,6 +143,16 @@ export class CanvasStore {
     return state;
   }
 
+  /** 在 child 自己的状态里记录主会话 id，供路由把 sidecar 视图解析回主会话。 */
+  async setMainSessionId(sessionId, mainSessionId) {
+    const state = await this.get(sessionId);
+    const value = String(mainSessionId ?? "");
+    if (state.mainSessionId === value) return state;
+    state.mainSessionId = value;
+    this.scheduleWrite(sessionId);
+    return state;
+  }
+
   /** 更新主 transcript 的 push cursor。 */
   async setPushCursor(sessionId, seq) {
     const state = await this.get(sessionId);
@@ -268,8 +278,9 @@ function emptyState(sessionId) {
       source: "auto",
       error: "",
     },
-    settings: { autoDraw: true },
+    settings: { autoDraw: false },
     sidecarChildId: "",
+    mainSessionId: "",
     pushCursorSeq: 0,
     visual: { status: "idle", error: "", startedAt: 0 },
   };
@@ -294,9 +305,11 @@ function restoreState(sessionId, parsed) {
     source: parsed.agent?.source === "main" ? "main" : "auto",
     error: typeof parsed.agent?.error === "string" ? parsed.agent.error : "",
   };
-  state.settings.autoDraw = parsed.settings?.autoDraw !== false;
+  state.settings.autoDraw = parsed.settings?.autoDraw === true;
   state.sidecarChildId =
     typeof parsed.sidecarChildId === "string" ? parsed.sidecarChildId : "";
+  state.mainSessionId =
+    typeof parsed.mainSessionId === "string" ? parsed.mainSessionId : "";
   state.pushCursorSeq = positiveInt(parsed.pushCursorSeq);
   return state;
 }
@@ -313,6 +326,7 @@ function persistedState(state) {
     agent: { ...state.agent },
     settings: { ...state.settings },
     sidecarChildId: state.sidecarChildId,
+    mainSessionId: state.mainSessionId,
     pushCursorSeq: state.pushCursorSeq,
   };
 }
