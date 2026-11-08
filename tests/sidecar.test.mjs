@@ -68,6 +68,7 @@ function setup() {
     setSidecarChildId: async (_id, childId) => {
       storeState.sidecarChildId = String(childId);
     },
+    setMainSessionId: async () => undefined,
     setVisual: async () => undefined,
   };
   manager = new SidecarManager({ ctx, store });

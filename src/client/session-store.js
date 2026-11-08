@@ -250,7 +250,7 @@ function initialState() {
       source: "auto",
       error: "",
     },
-    settings: { autoDraw: true },
+    settings: { autoDraw: false },
     visual: { status: "idle", error: "", startedAt: 0 },
     imageSupport: null,
     renderRequest: null,

@@ -4,6 +4,7 @@ import { createRoutes, ROUTE_PREFIX } from "../src/host/routes.js";
 
 function setup() {
   const calls = [];
+  const stateIds = [];
   const state = {
     user: { strokes: [], revision: 0, updatedAt: 0 },
     agent: {
@@ -19,7 +20,11 @@ function setup() {
     visual: { status: "idle", error: "", startedAt: 0 },
   };
   const store = {
-    publicState: async () => state,
+    get: async () => state,
+    publicState: async (id) => {
+      stateIds.push(id);
+      return state;
+    },
     saveUserStrokes: async (_id, strokes) => {
       calls.push(["saveUserStrokes", strokes]);
     },
@@ -43,10 +48,16 @@ function setup() {
       resolveModelInfo: async () => ({ inputModalities: ["text", "image"] }),
     },
   };
+  const sidecar = {
+    isSidecar: (id) => String(id).startsWith("echo-sketch-sidecar-"),
+    mainSessionOf: (id) =>
+      id === "echo-sketch-sidecar-1" ? "live" : undefined,
+  };
   const routes = createRoutes({
     ctx,
     store,
     bridge,
+    sidecar,
     triggerVisual: async () => {
       calls.push(["trigger"]);
     },
@@ -56,7 +67,7 @@ function setup() {
       (item) =>
         item.path === `${ROUTE_PREFIX}${path}` && item.methods.includes(method),
     );
-  return { calls, state, route };
+  return { calls, state, stateIds, route };
 }
 
 const headers = { "content-type": "application/json" };
@@ -71,6 +82,17 @@ test("GET state returns public state, support and render request", async () => {
   assert.equal(payload.ok, true);
   assert.equal(payload.imageSupport, true);
   assert.deepEqual(payload.renderRequest, { requestId: "r1", target: "user" });
+});
+
+test("sidecar sessionId resolves to the main session", async () => {
+  const { route, stateIds } = setup();
+  const response = await route("/state", "GET").fetch(
+    new Request(
+      "http://host/api/plugins/dsh-echo-sketch/state?sessionId=echo-sketch-sidecar-1",
+    ),
+  );
+  assert.equal(response.status, 200);
+  assert.deepEqual(stateIds, ["live"]);
 });
 
 test("POST canvas saves user strokes and clears agent", async () => {

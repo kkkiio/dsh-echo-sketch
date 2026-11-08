@@ -59,7 +59,7 @@ test("publicState hides internal cursor and sidecar id", async () =>
     const state = await store.publicState("s2");
     assert.equal("sidecarChildId" in state, false);
     assert.equal("pushCursorSeq" in state, false);
-    assert.deepEqual(state.settings, { autoDraw: true });
+    assert.deepEqual(state.settings, { autoDraw: false });
     await store.flush("s2");
   }));
 

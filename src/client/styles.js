@@ -18,15 +18,6 @@ export const CSS = `
   color:var(--es-ink);font:inherit;-webkit-tap-highlight-color:transparent;
 }
 .echo-sketch-topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;flex:none}
-.echo-sketch-brand{display:flex;align-items:center;gap:8px;min-width:0}
-.echo-sketch-logo{
-  display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;flex:none;
-  border:1px solid var(--es-border);border-radius:9px;background:var(--es-subtle);color:var(--es-accent);
-  box-shadow:0 1px 1px rgba(16,24,40,.03);
-}
-.echo-sketch-brand-text{min-width:0}
-.echo-sketch-brand-title{display:flex;align-items:center;gap:6px;font-weight:650;font-size:14px;line-height:19px;white-space:nowrap}
-.echo-sketch-brand-sub{font-size:11px;line-height:15px;color:var(--es-faint);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .echo-sketch-dot{width:7px;height:7px;flex:none;border-radius:50%;background:var(--es-accent);cursor:help;transition:background .15s}
 .echo-sketch-dot.is-busy{background:var(--es-warn);animation:echo-sketch-pulse 1s ease-in-out infinite}
 .echo-sketch-dot.is-error{background:var(--es-danger)}
@@ -198,13 +189,11 @@ export const CSS = `
 @keyframes echo-sketch-breathe{0%,100%{transform:translateY(0);opacity:1}50%{transform:translateY(-2px);opacity:.75}}
 @media (max-width:420px){
   .echo-sketch-root{padding:10px;gap:9px}
-  .echo-sketch-brand-sub{display:none}
   .echo-sketch-panel-meta{padding-left:0}
   .echo-sketch-actions{gap:1px}
 }
 @media (max-width:360px){
   .echo-sketch-topbar{gap:8px}
-  .echo-sketch-brand{flex:1 1 100%}
   .echo-sketch-segment{width:100%;padding:1px}
   .echo-sketch-tab{flex:1;justify-content:center;padding:5px 7px;gap:4px}
   .echo-sketch-divider{margin:0 1px}
